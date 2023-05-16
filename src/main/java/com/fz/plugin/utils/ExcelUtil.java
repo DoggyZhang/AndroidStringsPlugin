@@ -140,6 +140,9 @@ public class ExcelUtil {
      * @param languages
      */
     public static void generateExcelFile(File outputFile, Map<String, List<MultiLanguageBean>> languages) {
+        if (languages == null || languages.isEmpty()) {
+            return;
+        }
         Map<String, List<MultiLanguageBean>> covertData = convertData(languages);
         HSSFWorkbook work = new HSSFWorkbook();
         HSSFSheet sheet = work.createSheet();
@@ -175,11 +178,18 @@ public class ExcelUtil {
         style2.setFont(font2);
         Iterator<String> keys = covertData.keySet().iterator();
         List<MultiLanguageBean> langs = covertData.get("name");
+        if (langs == null || langs.isEmpty()) {
+            return;
+        }
         langs.sort(Comparator.comparing(MultiLanguageBean::getLanguageCode));
         int row = 0;
         createRow("name", langs, langs, sheet, style, row);
         while (keys.hasNext()) {
             final String key = keys.next();
+            if ("name".equals(key)) {
+                //已经创建过一行name
+                continue;
+            }
             ++row;
             createRow(key, langs, covertData.get(key), sheet, style2, row);
         }

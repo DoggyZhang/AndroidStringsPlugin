@@ -1,8 +1,8 @@
 <idea-plugin>
     <id>com.fz.strings.plugin.id</id>
-    <name>AndroidStringsTool</name>
-    <version>1.0.9</version>
-    <vendor email="peihua8858@gmail.com" url="https://github.com/peihua8858">dingpeihua</vendor>
+    <name>AndroidStringsTool-Plus</name>
+    <version>1.1.0</version>
+    <vendor email="doggyzhang1219@gmail.com" url="https://github.com/DoggyZhang/AndroidStringsPlugin">DoggyZhang</vendor>
 
     <description><![CDATA[
        AndroidStringsTool is plugin  for Convert android multilingual to excel or convert excel to android multilingual.
@@ -10,7 +10,12 @@
     <depends>com.intellij.modules.lang</depends>
     <depends>com.intellij.modules.java</depends>
     <change-notes><![CDATA[
-      <i>1.0.9变更</i>
+        <i>1.1.0变更</i>
+        <ul>
+            <li>修复XML导出Excel多出"name"一行</li>
+            <li>支持所有XML导出Excel</li>
+        </ul>
+        <i>1.0.9变更</i>
         <ul>
             <li>修复序列化失败的问题。</li>
         </ul>

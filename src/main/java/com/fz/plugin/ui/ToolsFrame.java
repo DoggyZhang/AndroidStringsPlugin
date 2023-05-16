@@ -56,6 +56,7 @@ public class ToolsFrame extends JFrame {
     private JButton btnSelectExportModuleFolder;
     private JComboBox<ComboBoxModelBean> cbExportModuleFolder;
     private JCheckBox cbContainLib;
+    private JCheckBox jcbExportAll;
     private JFileChooser mOpenFileDialog;
     private JFileChooser mSaveFileDialog;
     private JFileChooser mSelectModuleFileDialog;
@@ -359,6 +360,10 @@ public class ToolsFrame extends JFrame {
             return;
         }
         boolean containLib = cbContainLib.isSelected();
+        if (jcbExportAll.isSelected()) {
+            parseAllStringXmlToExcel(containLib, saveFilePath);
+            return;
+        }
         File outputFile = file;
         Utils.runWithNotification(() -> {
             File moduleFile;
@@ -370,6 +375,31 @@ public class ToolsFrame extends JFrame {
             Map<String, List<MultiLanguageBean>> languages = XmlUtil.paresXmlMultiLanguage(moduleFile, !containLib);
             ExcelUtil.generateExcelFile(outputFile, languages);
             showMessageDialog("生成Excel文件成功！");
+        }, project);
+    }
+
+    private void parseAllStringXmlToExcel(boolean containLib, String saveFileDir) {
+        File dir = new File(saveFileDir);
+        if (!dir.isDirectory() || !dir.exists()) {
+            showMessageDialog("请选择一个保存目录");
+            return;
+        }
+        ComboBoxModel<ComboBoxModelBean> models = cbExportModuleFolder.getModel();
+        showMessageDialog("导出全部, 总共" + models.getSize() + "个");
+        Utils.runWithNotification(() -> {
+            for (int i = 0; i < models.getSize(); i++) {
+                ComboBoxModelBean model = models.getElementAt(i);
+                File moduleFile;
+                if (StringUtils.isNotEmpty(model.getOriFilePath())) {
+                    moduleFile = new File(model.getOriFilePath());
+                } else {
+                    moduleFile = new File(rootDir, Configs.PROJECT_APP_FOLDER);
+                }
+                File outputFile = new File(saveFileDir, moduleFile.getName() + ".xls");
+                Map<String, List<MultiLanguageBean>> languages = XmlUtil.paresXmlMultiLanguage(moduleFile, !containLib);
+                ExcelUtil.generateExcelFile(outputFile, languages);
+            }
+            showMessageDialog("导出成功");
         }, project);
     }
 
