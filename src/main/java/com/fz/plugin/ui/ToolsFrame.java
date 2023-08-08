@@ -1,9 +1,6 @@
 package com.fz.plugin.ui;
 
-import com.fz.plugin.bean.ComboBoxListModel;
-import com.fz.plugin.bean.ComboBoxModelBean;
-import com.fz.plugin.bean.ElementBean;
-import com.fz.plugin.bean.MultiLanguageBean;
+import com.fz.plugin.bean.*;
 import com.fz.plugin.configs.Configs;
 import com.fz.plugin.utils.ExcelUtil;
 import com.fz.plugin.utils.FileUtils;
@@ -30,12 +27,13 @@ import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
-import java.io.File;
-import java.io.FileInputStream;
+import java.io.*;
 import java.text.MessageFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.List;
+import java.util.function.*;
+import java.util.stream.*;
 
 public class ToolsFrame extends JFrame {
     private static final Logger LOG = Logger.getInstance(ToolsFrame.class);
@@ -387,6 +385,9 @@ public class ToolsFrame extends JFrame {
         ComboBoxModel<ComboBoxModelBean> models = cbExportModuleFolder.getModel();
         showMessageDialog("导出全部, 总共" + models.getSize() + "个");
         Utils.runWithNotification(() -> {
+
+            List<CharCountData> chineseCountList = new ArrayList<>();
+
             for (int i = 0; i < models.getSize(); i++) {
                 ComboBoxModelBean model = models.getElementAt(i);
                 File moduleFile;
@@ -397,10 +398,87 @@ public class ToolsFrame extends JFrame {
                 }
                 File outputFile = new File(saveFileDir, moduleFile.getName() + ".xls");
                 Map<String, List<MultiLanguageBean>> languages = XmlUtil.paresXmlMultiLanguage(moduleFile, !containLib);
+                if (languages.isEmpty()) {
+                    continue;
+                }
                 ExcelUtil.generateExcelFile(outputFile, languages);
+                CharCountData chineseCharCount = collectChineseInfo(moduleFile.getName(), languages);
+                if (chineseCharCount.count > 0) {
+                    chineseCountList.add(chineseCharCount);
+                }
             }
+
+            saveChineseInfo(chineseCountList, saveFileDir);
             showMessageDialog("导出成功");
         }, project);
+    }
+
+    private CharCountData collectChineseInfo(String modelName, Map<String, List<MultiLanguageBean>> languages) {
+        if (languages == null || languages.isEmpty()) {
+            return new CharCountData(modelName, 0);
+        }
+        //统计中文字数
+        List<MultiLanguageBean> zh = languages.get("zh");
+        int count = 0;
+        if (zh != null) {
+            for (MultiLanguageBean bean : zh) {
+                String value = bean.getValue();
+                count += chineseCount(value);
+            }
+        }
+        return new CharCountData(modelName, count);
+    }
+
+    private void saveChineseInfo(List<CharCountData> lines, String saveFileDir) {
+        if (lines == null || lines.isEmpty()) {
+            showMessageDialog("统计中文字数失败(没有内容)");
+            return;
+        }
+        int allCount = 0;
+        for (CharCountData line : lines) {
+            allCount += line.count;
+        }
+        lines.add(0, new CharCountData("全部", allCount));
+        List<String> strLines = lines.stream().map(CharCountData::toString).collect(Collectors.toList());
+        File output = new File(saveFileDir, "中文字数统计(去除标点符号).txt");
+        //输出统计结果
+        try {
+            if (!output.exists()) {
+                output.createNewFile();
+            }
+            org.apache.commons.io.FileUtils.writeLines(output, strLines);
+            showMessageDialog("统计中文字数成功");
+        } catch (IOException e) {
+            showMessageDialog("统计中文字数失败");
+        }
+    }
+
+    /**
+     * 计算中文字数(不包含标点符号)
+     */
+    private int chineseCount(String content) {
+        if (content == null || content.length() == 0) {
+            return 0;
+        }
+        int count = 0;
+        Set<Character> withoutC = new HashSet<>();
+        withoutC.add('，');
+        withoutC.add('。');
+        withoutC.add('！');
+        withoutC.add('“');
+        withoutC.add('”');
+        withoutC.add('？');
+        char[] c = content.toCharArray();
+        for (int i = 0; i < c.length; i++) {
+            if (withoutC.contains(c[i])) {
+                continue;
+            }
+            String len = Integer.toBinaryString(c[i]);
+            if (len.length() > 8) {
+                count++;
+            }
+        }
+        return count;
     }
 
     /**
