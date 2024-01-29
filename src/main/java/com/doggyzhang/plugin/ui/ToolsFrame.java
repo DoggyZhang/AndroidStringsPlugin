@@ -1,11 +1,11 @@
-package com.fz.plugin.ui;
+package com.doggyzhang.plugin.ui;
 
-import com.fz.plugin.bean.*;
-import com.fz.plugin.configs.Configs;
-import com.fz.plugin.utils.ExcelUtil;
-import com.fz.plugin.utils.FileUtils;
-import com.fz.plugin.utils.Utils;
-import com.fz.plugin.utils.XmlUtil;
+import com.doggyzhang.plugin.bean.*;
+import com.doggyzhang.plugin.configs.Configs;
+import com.doggyzhang.plugin.utils.ExcelUtil;
+import com.doggyzhang.plugin.utils.FileUtils;
+import com.doggyzhang.plugin.utils.Utils;
+import com.doggyzhang.plugin.utils.XmlUtil;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.progress.util.ProgressIndicatorBase;
 import com.intellij.openapi.progress.util.ProgressWindow;
@@ -32,7 +32,6 @@ import java.text.MessageFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.List;
-import java.util.function.*;
 import java.util.stream.*;
 
 public class ToolsFrame extends JFrame {
@@ -128,7 +127,7 @@ public class ToolsFrame extends JFrame {
                 }
             }
         });
-        PromptSupport.init("您要导入的数据在哪个工作表？如：Sheet1", Color.LIGHT_GRAY,
+        PromptSupport.init("您要导入的数据在哪个工作表？如：Sheet0", Color.LIGHT_GRAY,
                 null, jtWorksheetName);
         tabPane.addChangeListener(new ChangeListener() {
             @Override
@@ -518,13 +517,13 @@ public class ToolsFrame extends JFrame {
             showMessageDialog("出现错误:" + e.getMessage());
             return;
         }
-        String sheet1 = jtWorksheetName.getText();
-        LOG.info("ToolsSettings>>sheet1" + sheet1);
-        if (StringUtils.isEmpty(sheet1)) {
-            sheet1 = "Sheet1";
+        String sheetName = jtWorksheetName.getText();
+        LOG.info("ToolsSettings>>sheetName: " + sheetName);
+        if (StringUtils.isEmpty(sheetName)) {
+            sheetName = "Sheet0";
         }
         Workbook finalWb = wb;
-        String finalSheet = sheet1;
+        String finalSheet = sheetName;
         boolean isForceReplace = cbForceReplace.isSelected();
         buttonOK.setEnabled(false);
         buttonCancel.setEnabled(false);

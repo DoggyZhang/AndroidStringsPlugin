@@ -1,4 +1,4 @@
-package com.fz.plugin.utils;
+package com.doggyzhang.plugin.utils;
 
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.progress.ProgressManager;

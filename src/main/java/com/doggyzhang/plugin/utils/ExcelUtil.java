@@ -1,7 +1,7 @@
-package com.fz.plugin.utils;
+package com.doggyzhang.plugin.utils;
 
-import com.fz.plugin.bean.ElementBean;
-import com.fz.plugin.bean.MultiLanguageBean;
+import com.doggyzhang.plugin.bean.ElementBean;
+import com.doggyzhang.plugin.bean.MultiLanguageBean;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.hssf.usermodel.*;
 import org.apache.poi.hssf.util.HSSFColor;

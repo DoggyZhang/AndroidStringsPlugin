@@ -1,4 +1,4 @@
-package com.fz.plugin.bean;
+package com.doggyzhang.plugin.bean;
 
 public class MultiLanguageBean {
     private String name;

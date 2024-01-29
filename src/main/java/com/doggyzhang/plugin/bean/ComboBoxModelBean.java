@@ -1,4 +1,4 @@
-package com.fz.plugin.bean;
+package com.doggyzhang.plugin.bean;
 
 import java.util.Objects;
 

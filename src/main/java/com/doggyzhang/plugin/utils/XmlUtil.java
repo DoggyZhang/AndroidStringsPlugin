@@ -1,11 +1,10 @@
-package com.fz.plugin.utils;
+package com.doggyzhang.plugin.utils;
 
-import com.fz.plugin.FileFinder;
-import com.fz.plugin.bean.ElementBean;
-import com.fz.plugin.bean.MultiLanguageBean;
-import com.fz.plugin.bean.MutableTreeNode;
-import com.fz.plugin.bean.TreeModelBean;
-import com.fz.plugin.configs.Configs;
+import com.doggyzhang.plugin.bean.ElementBean;
+import com.doggyzhang.plugin.bean.MultiLanguageBean;
+import com.doggyzhang.plugin.bean.MutableTreeNode;
+import com.doggyzhang.plugin.bean.TreeModelBean;
+import com.doggyzhang.plugin.configs.Configs;
 import org.apache.commons.lang3.StringUtils;
 import org.w3c.dom.*;
 import org.w3c.dom.bootstrap.DOMImplementationRegistry;

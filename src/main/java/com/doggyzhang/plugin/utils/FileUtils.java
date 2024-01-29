@@ -1,7 +1,7 @@
-package com.fz.plugin.utils;
+package com.doggyzhang.plugin.utils;
 
-import com.fz.plugin.FileFinder;
-import com.fz.plugin.configs.Configs;
+import com.doggyzhang.plugin.FileFinder;
+import com.doggyzhang.plugin.configs.Configs;
 
 import java.io.File;
 import java.util.List;

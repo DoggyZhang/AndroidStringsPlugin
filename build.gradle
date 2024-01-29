@@ -21,8 +21,11 @@ apply plugin: 'java'
 
 intellij {
     plugins 'java'
-    version '2020.3'  //debug version
+    //https:\/\/plugins.jetbrains.com\/docs\/intellij\/tools-gradle-intellij-plugin.html#intellij-extension-version
+    //version 'IC-223.8836.41'
+    version '2020.3'
     updateSinceUntilBuild false
+    localPath "C:\\DevTools\\IntelliJ IDEA\\IntelliJ IDEA Community Edition 2020.3"
 }
 
 sourceCompatibility = 1.11

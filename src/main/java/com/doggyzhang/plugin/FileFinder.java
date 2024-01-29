@@ -1,4 +1,4 @@
-package com.fz.plugin;
+package com.doggyzhang.plugin;
 
 import org.apache.tools.ant.DirectoryScanner;
 import org.apache.tools.ant.Project;

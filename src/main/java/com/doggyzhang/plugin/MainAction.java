@@ -1,9 +1,9 @@
-package com.fz.plugin;
+package com.doggyzhang.plugin;
 
-import com.fz.plugin.configs.Configs;
-import com.fz.plugin.ui.ToolsFrame;
-import com.fz.plugin.utils.FileUtils;
-import com.fz.plugin.utils.Utils;
+import com.doggyzhang.plugin.configs.Configs;
+import com.doggyzhang.plugin.ui.ToolsFrame;
+import com.doggyzhang.plugin.utils.FileUtils;
+import com.doggyzhang.plugin.utils.Utils;
 import com.intellij.codeInsight.CodeInsightActionHandler;
 import com.intellij.codeInsight.generation.actions.BaseGenerateAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;

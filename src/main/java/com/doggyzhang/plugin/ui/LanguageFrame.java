@@ -1,9 +1,9 @@
-package com.fz.plugin.ui;
+package com.doggyzhang.plugin.ui;
 
-import com.fz.plugin.bean.ElementBean;
-import com.fz.plugin.bean.TreeModelBean;
-import com.fz.plugin.utils.Utils;
-import com.fz.plugin.utils.XmlUtil;
+import com.doggyzhang.plugin.bean.ElementBean;
+import com.doggyzhang.plugin.bean.TreeModelBean;
+import com.doggyzhang.plugin.utils.Utils;
+import com.doggyzhang.plugin.utils.XmlUtil;
 import com.intellij.diff.DiffContentFactoryEx;
 import com.intellij.diff.DiffManager;
 import com.intellij.diff.requests.DiffRequest;
@@ -18,7 +18,6 @@ import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreeNode;
 import javax.swing.tree.TreePath;
-import java.awt.*;
 import java.awt.event.*;
 import java.io.File;
 import java.text.MessageFormat;

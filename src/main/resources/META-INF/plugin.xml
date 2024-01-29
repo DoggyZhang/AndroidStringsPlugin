@@ -1,5 +1,5 @@
 <idea-plugin>
-    <id>com.fz.strings.plugin.id</id>
+    <id>com.doggyzhang.strings.plugin.id</id>
     <name>AndroidStringsTool-Plus</name>
     <version>1.1.1</version>
     <vendor email="doggyzhang1219@gmail.com" url="https://github.com/DoggyZhang/AndroidStringsPlugin">DoggyZhang</vendor>
@@ -44,7 +44,7 @@
 
     <actions>
         <!-- Add your actions here -->
-        <action id="StringsTool" class="com.fz.plugin.MainAction"
+        <action id="StringsTool" class="com.doggyzhang.plugin.MainAction"
                 text="StringsTool" description="strings convert to excel" icon="/icons/ic_menu_small.svg">
             <add-to-group group-id="ToolsMenu" relative-to-action="GenerateJavadoc" anchor="after"/>
             <add-to-group group-id="ProjectViewPopupMenu" anchor="after" relative-to-action="ReplaceInPath"/>

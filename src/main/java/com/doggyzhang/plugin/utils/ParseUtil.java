@@ -8,7 +8,7 @@
  * you entered into with Globalegrow.
  */
 
-package com.fz.plugin.utils;
+package com.doggyzhang.plugin.utils;
 
 /**
  * Create

@@ -1,4 +1,4 @@
-package com.fz.plugin.configs;
+package com.doggyzhang.plugin.configs;
 
 /**
  * 配置工具
