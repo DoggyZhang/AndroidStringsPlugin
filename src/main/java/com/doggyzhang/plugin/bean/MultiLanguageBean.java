@@ -6,6 +6,8 @@ public class MultiLanguageBean {
     private String languageCode;
     private String language;
 
+    private boolean translateError = false;
+
     public MultiLanguageBean() {
     }
 
@@ -19,6 +21,7 @@ public class MultiLanguageBean {
         this.value = other.value;
         this.languageCode = other.languageCode;
         this.language = other.language;
+        this.translateError = other.translateError;
     }
 
     public String getName() {
@@ -52,6 +55,14 @@ public class MultiLanguageBean {
 
     public void setLanguage(String language) {
         this.language = language;
+    }
+
+    public void setTranslateError(boolean error) {
+        this.translateError = error;
+    }
+
+    public boolean isTranslateError() {
+        return this.translateError;
     }
 
     @Override

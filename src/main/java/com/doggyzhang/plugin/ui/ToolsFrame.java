@@ -1,12 +1,17 @@
 package com.doggyzhang.plugin.ui;
 
 import com.doggyzhang.plugin.bean.*;
+import com.doggyzhang.plugin.checker.*;
 import com.doggyzhang.plugin.configs.Configs;
+import com.doggyzhang.plugin.translate.*;
+import com.doggyzhang.plugin.translate.youdao.*;
 import com.doggyzhang.plugin.utils.ExcelUtil;
 import com.doggyzhang.plugin.utils.FileUtils;
 import com.doggyzhang.plugin.utils.Utils;
 import com.doggyzhang.plugin.utils.XmlUtil;
+import com.doggyzhang.plugin.widget.*;
 import com.intellij.openapi.diagnostic.Logger;
+import com.intellij.openapi.progress.*;
 import com.intellij.openapi.progress.util.ProgressIndicatorBase;
 import com.intellij.openapi.progress.util.ProgressWindow;
 import com.intellij.openapi.project.Project;
@@ -19,29 +24,28 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.jdesktop.swingx.prompt.PromptSupport;
 
 import javax.swing.*;
-import javax.swing.event.ChangeEvent;
-import javax.swing.event.ChangeListener;
+import javax.swing.event.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.tree.TreeNode;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.ItemEvent;
+import java.awt.event.*;
 import java.io.*;
 import java.text.MessageFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.List;
+import java.util.function.*;
 import java.util.stream.*;
 
 public class ToolsFrame extends JFrame {
     private static final Logger LOG = Logger.getInstance(ToolsFrame.class);
     private JPanel contentPane;
+    private JPanel jBottomPanel;
     private JButton buttonOK;
     private JButton buttonCancel;
     private JTabbedPane tabPane;
     private JButton btnBrowser;
-    private JCheckBox jcbExportLocalFile;
+    private String lastSelectFileDir;
     private JTextField jtfExportSaveFilePath;
     private JButton btnExportSaveFile;
     private JTextField jtWorksheetName;
@@ -54,6 +58,17 @@ public class ToolsFrame extends JFrame {
     private JComboBox<ComboBoxModelBean> cbExportModuleFolder;
     private JCheckBox cbContainLib;
     private JCheckBox jcbExportAll;
+    private JList<ComboBoxModelBean> jListTranslateModule;
+    private DefaultListSelectionModel jListTranslateSelectionModel;
+    private JTextField jTextTranslateAuthKey;
+    private JButton jBtnTranslateAll;
+    private JCheckBox jCheckBoxTranslateExport;
+    private JTextField jTextTranslateExportFolder;
+    private JPanel jPanelTranslateLanguage;
+    private JCheckBox jCheckTranslateReplaceOld;
+    private JButton jButtonSelectAllLanguage;
+
+    private ITranslate translate = new YouDaoTranslate();
     private JFileChooser mOpenFileDialog;
     private JFileChooser mSaveFileDialog;
     private JFileChooser mSelectModuleFileDialog;
@@ -82,7 +97,11 @@ public class ToolsFrame extends JFrame {
                 }
                 FileNameExtensionFilter xlsx = new FileNameExtensionFilter("MS Excel file(*.xlsx;*.xls)",
                         "xlsx", "xls");
-                mOpenFileDialog.setCurrentDirectory(rootDir);
+                if (lastSelectFileDir != null) {
+                    mOpenFileDialog.setCurrentDirectory(new File(lastSelectFileDir));
+                } else {
+                    mOpenFileDialog.setCurrentDirectory(rootDir);
+                }
                 mOpenFileDialog.addChoosableFileFilter(xlsx);
                 mOpenFileDialog.setAcceptAllFileFilterUsed(false);
                 mOpenFileDialog.setFileSelectionMode(JFileChooser.FILES_AND_DIRECTORIES);
@@ -93,6 +112,8 @@ public class ToolsFrame extends JFrame {
                                 "输入的文件类型不合法！输入文件必须是xlsx文件！");
                         return;
                     }
+                    File selectFile = new File(path);
+                    lastSelectFileDir = selectFile.getParent();
                     addComBoxModel(path);
                 }
             }
@@ -144,6 +165,9 @@ public class ToolsFrame extends JFrame {
                         break;
                     case 1:
                         parseStringXmlToExcel();
+                        break;
+                    case 2:
+                        parseAndTransLate();
                         break;
                 }
             }
@@ -200,6 +224,120 @@ public class ToolsFrame extends JFrame {
         cbExcelFilePath.addItemListener(this::setSelectExcelFilePath);
         cbMainFolder.addItemListener(this::setSelectModuleFilePath);
         cbExportModuleFolder.addItemListener(this::setSelectExcelModuleFilePath);
+
+
+        /*
+          翻译并补齐
+         */
+        jTextTranslateAuthKey.setText(translate.getLastAuthKey(project));
+//        jTextTranslateAuthKey.getDocument().addDocumentListener(new DocumentListener() {
+//            @Override
+//            public void insertUpdate(DocumentEvent e) {
+//
+//            }
+//
+//            @Override
+//            public void removeUpdate(DocumentEvent e) {
+//
+//            }
+//
+//            @Override
+//            public void changedUpdate(DocumentEvent e) {
+//
+//            }
+//        });
+        jListTranslateModule.setCellRenderer(new ModuleJCheckBox<>());
+        ListSelectionModel jListTranslateSelectionModel = new DefaultListSelectionModel() {
+            @Override
+            public void setSelectionInterval(int index0, int index1) {
+                if (super.isSelectedIndex(index0)) {
+                    super.removeSelectionInterval(index0, index1);
+                } else {
+                    super.addSelectionInterval(index0, index1);
+                }
+            }
+        };
+        jListTranslateSelectionModel.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
+        jListTranslateModule.setSelectionModel(jListTranslateSelectionModel);
+        jListTranslateModule.addListSelectionListener(new ListSelectionListener() {
+            @Override
+            public void valueChanged(ListSelectionEvent e) {
+                System.out.println(e);
+            }
+        });
+
+        if (!moduleFiles.isEmpty()) {
+            ComboBoxListModel modelList = new ComboBoxListModel();
+            for (String moduleFile : moduleFiles) {
+                final File file = new File(rootDir, moduleFile);
+                final File parentFile = file.getParentFile();
+                modelList.addElement(new ComboBoxModelBean(file.getAbsolutePath(), parentFile.getName()));
+            }
+            jListTranslateModule.setModel(modelList);
+        }
+        jBtnTranslateAll.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                for (int i = 0; i < jListTranslateModule.getModel().getSize(); i++) {
+                    jListTranslateModule.setSelectedIndex(i);
+                }
+            }
+        });
+        jTextTranslateExportFolder.addMouseListener(new MouseListener() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (mSaveFileDialog == null) {
+                    mSaveFileDialog = new JFileChooser();
+                }
+                mSaveFileDialog.addChoosableFileFilter(null);
+                mSaveFileDialog.setAcceptAllFileFilterUsed(false);
+                mSaveFileDialog.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+                if (mSaveFileDialog.showSaveDialog(ToolsFrame.this) == JFileChooser.APPROVE_OPTION) {
+                    String path = mSaveFileDialog.getSelectedFile().getAbsolutePath();
+                    jTextTranslateExportFolder.setText(path);
+                }
+            }
+
+            @Override
+            public void mousePressed(MouseEvent e) {
+
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+
+            }
+
+            @Override
+            public void mouseEntered(MouseEvent e) {
+
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+
+            }
+        });
+
+        jButtonSelectAllLanguage.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                for (int i = 0; i < jPanelTranslateLanguage.getComponentCount(); i++) {
+                    Component component = jPanelTranslateLanguage.getComponent(i);
+                    if (component instanceof JCheckBox) {
+                        ((JCheckBox) component).setSelected(true);
+                    }
+                }
+            }
+        });
+
+        jPanelTranslateLanguage.setLayout(new GridLayout(3, 5, 4, 4));
+        for (Language language : Language.values()) {
+            JCheckBox checkBox = new JCheckBox(language.getLanguageCode());
+            checkBox.setSelected(false);
+            jPanelTranslateLanguage.add(checkBox);
+        }
+
         Utils.sizeWindowOnScreen(this, 550, 260);
         pack();
     }
@@ -334,6 +472,267 @@ public class ToolsFrame extends JFrame {
         }
     }
 
+    private void parseAndTransLate() {
+        String authKey = jTextTranslateAuthKey.getText();
+        if (StringUtils.isEmpty(authKey)) {
+            showMessageDialog("请输入翻译授权码");
+            return;
+        }
+
+        int[] selectedIndices = jListTranslateModule.getSelectionModel().getSelectedIndices();
+        if (selectedIndices == null || selectedIndices.length == 0) {
+            showMessageDialog("请选择翻译的模块");
+            return;
+        }
+        File outputFolder;
+        if (jCheckBoxTranslateExport.isSelected()) {
+            String exportPath = jTextTranslateExportFolder.getText();
+            if (StringUtils.isEmpty(exportPath)) {
+                showMessageDialog("导出路径为空, 要选择导出文件夹");
+                return;
+            }
+            outputFolder = new File(exportPath);
+            if (!outputFolder.exists()) {
+                showMessageDialog("导出文件夹不存在");
+                return;
+            }
+            if (!outputFolder.isDirectory()) {
+                showMessageDialog("选择的导出的路径不是文件夹");
+                return;
+            }
+        } else {
+            outputFolder = null;
+        }
+
+        List<Language> targetLanguages = new ArrayList<>();
+        for (int i = 0; i < jPanelTranslateLanguage.getComponentCount(); i++) {
+            Component component = jPanelTranslateLanguage.getComponent(i);
+            if (component instanceof JCheckBox) {
+                JCheckBox checkBox = ((JCheckBox) component);
+                if (checkBox.isSelected()) {
+                    String languageStr = checkBox.getText();
+                    Language targetLanguage = Language.getLanguageBy(languageStr);
+                    if (targetLanguage == null) {
+                        showMessageDialog("目标语言" + languageStr + "无法识别, 联系DoggyZhang解决");
+                        continue;
+                    }
+                    targetLanguages.add(targetLanguage);
+                }
+            }
+        }
+
+        //替换旧翻译
+        boolean replaceOld = jCheckTranslateReplaceOld.isSelected();
+
+        System.out.println("要翻译的目标语言: " + StringUtils.join(targetLanguages, ","));
+        Utils.runWithNotification(() -> {
+                    ProgressIndicator progressIndicator = ProgressManager.getInstance().getProgressIndicator();
+
+                    for (int i = 0; i < selectedIndices.length; i++) {
+                        int index = selectedIndices[i];
+                        ComboBoxModelBean modelBean = jListTranslateModule.getModel().getElementAt(index);
+
+                        System.out.println("> 当前处理的模块:" + modelBean.getShowPath());
+                        //------------------------------------------------
+                        progressIndicator.setText(
+                                "> 当前处理的模块:" + modelBean.getShowPath()
+                        );
+                        progressIndicator.setFraction(0);
+
+                        String currentProgressStr =
+                                "(" + (i + 1) + "/" + selectedIndices.length + ")" + modelBean.getShowPath()
+                                        + " --> ";
+                        File moduleFile = new File(modelBean.getOriFilePath());
+
+                        //------------------------------------------------
+                        System.out.println("  解析strings.xml");
+                        progressIndicator.setText(
+                                currentProgressStr + "解析strings.xml"
+                        );
+                        progressIndicator.setFraction(0.2);
+
+                        Map<String, List<MultiLanguageBean>> languages = XmlUtil.paresXmlMultiLanguage(moduleFile, true);
+                        System.out.println("  当前模块下的语种: " + StringUtils.join(languages.keySet(), ","));
+
+                        //检查是否含有"en"
+                        if (!languages.containsKey("en")) {
+                            showMessageDialog("模块:" + modelBean.getShowPath() + ", 没有strings.xml文件");
+                            return;
+                        }
+
+                        //------------------------------------------------
+                        System.out.println("  翻译中");
+                        progressIndicator.setText(
+                                currentProgressStr + "翻译中"
+                        );
+                        progressIndicator.setFraction(0.5);
+
+                        //以英文翻译为模板来翻译
+                        List<MultiLanguageBean> enTranslateList = languages.get("en");
+                        List<String> enInputList = enTranslateList.stream().map(new Function<MultiLanguageBean, String>() {
+                            @Override
+                            public String apply(MultiLanguageBean multiLanguageBean) {
+                                return multiLanguageBean.getValue();
+                            }
+                        }).collect(Collectors.toList());
+                        translate.setAuthKey(project, authKey);
+                        Map<Language, Map<String, String>> translateResult = translate.translate(
+                                enInputList,
+                                Language.EN,
+                                targetLanguages
+                        );
+
+                        boolean existTranslateError = false;
+                        for (Map.Entry<Language, Map<String, String>> translateEntry : translateResult.entrySet()) {
+                            if (translateEntry.getValue().isEmpty()) {
+                                System.out.println("目标语言: " + translateEntry.getKey().getLanguageCode() + ", 翻译失败, 内容为空");
+                                continue;
+                            }
+                            Language targetLanguage = translateEntry.getKey();
+                            if (languages.containsKey(targetLanguage.getLanguageCode())) {
+                                //已经有翻译了
+                                if (replaceOld) {
+                                    //替换旧翻译
+                                    List<MultiLanguageBean> newTranslateList = new ArrayList<>();
+                                    for (MultiLanguageBean enTranslate : enTranslateList) {
+                                        final MultiLanguageBean newTranslateBean = new MultiLanguageBean();
+                                        newTranslateBean.setLanguage("");
+                                        newTranslateBean.setLanguageCode(targetLanguage.getLanguageCode());
+                                        newTranslateBean.setName(enTranslate.getName());
+
+                                        String enValue = enTranslate.getValue();
+                                        String targetValue = translateEntry.getValue().get(enValue);
+                                        //检查翻译的是否准确(占位符)
+                                        long enPlaceHolderCount = XMLPlaceHolderChecker.countPlaceHolder(enValue);
+                                        long targetPlaceHolderCount = XMLPlaceHolderChecker.countPlaceHolder(targetValue);
+                                        newTranslateBean.setValue(targetValue);
+                                        if (enPlaceHolderCount != targetPlaceHolderCount) {
+                                            existTranslateError = true;
+                                            newTranslateBean.setTranslateError(true);
+                                        } else {
+                                            newTranslateBean.setTranslateError(false);
+                                        }
+
+                                        newTranslateList.add(newTranslateBean);
+                                    }
+                                    languages.put(targetLanguage.getLanguageCode(), newTranslateList);
+                                } else {
+                                    //补全缺失部分
+                                    List<MultiLanguageBean> oldTranslateList = languages.get(targetLanguage.getLanguageCode());
+                                    for (MultiLanguageBean enTranslate : enTranslateList) {
+                                        boolean isExist = false;
+                                        for (MultiLanguageBean oldTranslate : oldTranslateList) {
+                                            if (oldTranslate.getName().equals(enTranslate.getName())) {
+                                                isExist = true;
+                                                break;
+                                            }
+                                        }
+                                        if (!isExist) {
+                                            //旧翻译缺失
+                                            final MultiLanguageBean newTranslateBean = new MultiLanguageBean();
+                                            newTranslateBean.setLanguage("");
+                                            newTranslateBean.setLanguageCode(targetLanguage.getLanguageCode());
+                                            newTranslateBean.setName(enTranslate.getName());
+
+                                            String enValue = enTranslate.getValue();
+                                            String targetValue = translateEntry.getValue().get(enValue);
+                                            //检查翻译的是否准确(占位符)
+                                            long enPlaceHolderCount = XMLPlaceHolderChecker.countPlaceHolder(enValue);
+                                            long targetPlaceHolderCount = XMLPlaceHolderChecker.countPlaceHolder(targetValue);
+                                            newTranslateBean.setValue(targetValue);
+                                            if (enPlaceHolderCount != targetPlaceHolderCount) {
+                                                existTranslateError = true;
+                                                newTranslateBean.setTranslateError(true);
+                                            } else {
+                                                newTranslateBean.setTranslateError(false);
+                                            }
+
+                                            oldTranslateList.add(newTranslateBean);
+                                        }
+                                    }
+                                }
+                            } else {
+                                //没有该翻译,创建该翻译
+                                List<MultiLanguageBean> newTranslateList = new ArrayList<>();
+                                for (MultiLanguageBean enTranslate : enTranslateList) {
+                                    final MultiLanguageBean newTranslateBean = new MultiLanguageBean();
+                                    newTranslateBean.setLanguage("");
+                                    newTranslateBean.setLanguageCode(targetLanguage.getLanguageCode());
+                                    newTranslateBean.setName(enTranslate.getName());
+
+                                    String enValue = enTranslate.getValue();
+                                    String targetValue = translateEntry.getValue().get(enValue);
+                                    //检查翻译的是否准确(占位符)
+                                    long enPlaceHolderCount = XMLPlaceHolderChecker.countPlaceHolder(enValue);
+                                    long targetPlaceHolderCount = XMLPlaceHolderChecker.countPlaceHolder(targetValue);
+                                    newTranslateBean.setValue(targetValue);
+                                    if (enPlaceHolderCount != targetPlaceHolderCount) {
+                                        existTranslateError = true;
+                                        newTranslateBean.setTranslateError(true);
+                                    } else {
+                                        newTranslateBean.setTranslateError(false);
+                                    }
+
+                                    newTranslateList.add(newTranslateBean);
+                                }
+                                languages.put(targetLanguage.getLanguageCode(), newTranslateList);
+                            }
+                        }
+                        System.out.println("  替换(补充)旧文案");
+                        progressIndicator.setText(
+                                currentProgressStr + "替换(补充)旧文案"
+                        );
+                        progressIndicator.setFraction(0.8);
+                        //替换旧翻译
+                        Map<String, List<ElementBean>> replaceData = new HashMap<>();
+                        for (Map.Entry<String, List<MultiLanguageBean>> translateData : languages.entrySet()) {
+                            if (translateData.getKey().equals("en")) {
+                                //英语不纳入最后的替换操作
+                                continue;
+                            }
+                            List<ElementBean> replaceList = translateData.getValue().stream().map(new Function<MultiLanguageBean, ElementBean>() {
+                                @Override
+                                public ElementBean apply(MultiLanguageBean multiLanguageBean) {
+                                    return new ElementBean(
+                                            multiLanguageBean.getName(),
+                                            multiLanguageBean.getValue(),
+                                            multiLanguageBean.isTranslateError()
+                                    );
+                                }
+                            }).collect(Collectors.toList());
+                            replaceData.put(translateData.getKey(), replaceList);
+                        }
+                        if (!replaceData.isEmpty()) {
+                            XmlUtil.forceReplace(replaceData, true, moduleFile);
+                        }
+
+                        //导出新翻译
+                        boolean exportToExcel = jCheckBoxTranslateExport.isSelected() && outputFolder != null;
+                        if (exportToExcel) {
+                            //------------------------------------------------
+                            System.out.println("  导出Excel");
+                            progressIndicator.setText(
+                                    currentProgressStr + "导出Excel"
+                            );
+                            progressIndicator.setFraction(0.9);
+                            ExcelUtil.generateExcelFile(new File(outputFolder, modelBean.getShowPath() + ".xls"), languages);
+                        }
+
+                        //弹窗提示存在翻译错误问题,需要手动纠正
+                        if (existTranslateError) {
+                            if (exportToExcel) {
+                                showMessageDialog("存在一些翻译错误, 搜索XML属性isTranslateError, 然后手动更正, 也可以查看导出的Excel文件");
+                            } else {
+                                showMessageDialog("存在一些翻译错误, 搜索XML属性isTranslateError, 然后手动更正");
+                            }
+                        }
+                    }
+                },
+                project,
+                Utils.makeProgress("处理中", project, true, false, true));
+    }
+
+
     /**
      * 扫描解析values.xml，并上传到服务器
      *
@@ -348,27 +747,31 @@ public class ToolsFrame extends JFrame {
             showMessageDialog("存储文件路径不能为空！");
             return;
         }
-        File file = new File(saveFilePath);
-        if (file.isDirectory()) {
-            String dateFormat = new SimpleDateFormat("yyyy-MM-dd-HH-mm").format(new Date());
-            file = new File(saveFilePath, project.getName() + "-" + dateFormat + ".xls");
-        }
-        if (!jcbExportLocalFile.isSelected()) {
-            return;
-        }
         boolean containLib = cbContainLib.isSelected();
         if (jcbExportAll.isSelected()) {
             parseAllStringXmlToExcel(containLib, saveFilePath);
             return;
         }
+
+        File moduleFile;
+        if (StringUtils.isNotEmpty(exportModuleFolderPath)) {
+            moduleFile = new File(exportModuleFolderPath);
+        } else {
+            moduleFile = new File(rootDir, Configs.PROJECT_APP_FOLDER);
+        }
+
+        File file = new File(saveFilePath);
+        if (file.isDirectory()) {
+            if (StringUtils.isEmpty(exportModuleFolderPath)) {
+                String dateFormat = new SimpleDateFormat("yyyy-MM-dd-HH-mm").format(new Date());
+                file = new File(saveFilePath, project.getName() + "-" + dateFormat + ".xls");
+            } else {
+                file = new File(saveFilePath, moduleFile.getName() + ".xls");
+            }
+        }
+
         File outputFile = file;
         Utils.runWithNotification(() -> {
-            File moduleFile;
-            if (StringUtils.isNotEmpty(exportModuleFolderPath)) {
-                moduleFile = new File(exportModuleFolderPath);
-            } else {
-                moduleFile = new File(rootDir, Configs.PROJECT_APP_FOLDER);
-            }
             Map<String, List<MultiLanguageBean>> languages = XmlUtil.paresXmlMultiLanguage(moduleFile, !containLib);
             ExcelUtil.generateExcelFile(outputFile, languages);
             showMessageDialog("生成Excel文件成功！");

@@ -146,36 +146,53 @@ public class ExcelUtil {
         Map<String, List<MultiLanguageBean>> covertData = convertData(languages);
         HSSFWorkbook work = new HSSFWorkbook();
         HSSFSheet sheet = work.createSheet();
+
         //固定表头
         sheet.createFreezePane(1, 1);
         sheet.setDefaultColumnWidth(25);
-        HSSFCellStyle style = work.createCellStyle();
-        style.setFillForegroundColor(IndexedColors.DARK_GREEN.getIndex());
-        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-        style.setBorderBottom(BorderStyle.NONE);
-        style.setBorderLeft(BorderStyle.NONE);
-        style.setBorderRight(BorderStyle.NONE);
-        style.setBorderTop(BorderStyle.NONE);
-        style.setAlignment(HorizontalAlignment.CENTER);
-        style.setVerticalAlignment(VerticalAlignment.CENTER);
-        HSSFFont font = work.createFont();
-        font.setColor(HSSFColor.HSSFColorPredefined.WHITE.getIndex());
-        font.setFontHeightInPoints((short) 20);
-        font.setBold(true);
-        style.setFont(font);
 
-        HSSFCellStyle style2 = work.createCellStyle();
-        style2.setFillForegroundColor(IndexedColors.AUTOMATIC.getIndex());
-        style2.setBorderBottom(BorderStyle.NONE);
-        style2.setBorderLeft(BorderStyle.NONE);
-        style2.setBorderRight(BorderStyle.NONE);
-        style2.setBorderTop(BorderStyle.NONE);
-        style2.setAlignment(HorizontalAlignment.CENTER);
-        style2.setVerticalAlignment(VerticalAlignment.CENTER);
+        HSSFCellStyle titleStyle = work.createCellStyle();
+        titleStyle.setFillForegroundColor(IndexedColors.DARK_GREEN.getIndex());
+        titleStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        titleStyle.setBorderBottom(BorderStyle.NONE);
+        titleStyle.setBorderLeft(BorderStyle.NONE);
+        titleStyle.setBorderRight(BorderStyle.NONE);
+        titleStyle.setBorderTop(BorderStyle.NONE);
+        titleStyle.setAlignment(HorizontalAlignment.CENTER);
+        titleStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+        HSSFFont titleFont = work.createFont();
+        titleFont.setColor(HSSFColor.HSSFColorPredefined.WHITE.getIndex());
+        titleFont.setFontHeightInPoints((short) 20);
+        titleFont.setBold(true);
+        titleStyle.setFont(titleFont);
 
-        HSSFFont font2 = work.createFont();
-        font2.setBold(false);
-        style2.setFont(font2);
+        HSSFCellStyle normalStyle = work.createCellStyle();
+        normalStyle.setFillForegroundColor(IndexedColors.AUTOMATIC.getIndex());
+        normalStyle.setBorderBottom(BorderStyle.NONE);
+        normalStyle.setBorderLeft(BorderStyle.NONE);
+        normalStyle.setBorderRight(BorderStyle.NONE);
+        normalStyle.setBorderTop(BorderStyle.NONE);
+        normalStyle.setAlignment(HorizontalAlignment.CENTER);
+        normalStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+        HSSFFont normalFont = work.createFont();
+        normalFont.setColor(HSSFColor.HSSFColorPredefined.BLACK.getIndex());
+        normalFont.setBold(false);
+        normalStyle.setFont(normalFont);
+
+        HSSFCellStyle errorStyle = work.createCellStyle();
+        errorStyle.setFillForegroundColor(IndexedColors.DARK_RED.getIndex());
+        errorStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        errorStyle.setBorderBottom(BorderStyle.NONE);
+        errorStyle.setBorderLeft(BorderStyle.NONE);
+        errorStyle.setBorderRight(BorderStyle.NONE);
+        errorStyle.setBorderTop(BorderStyle.NONE);
+        errorStyle.setAlignment(HorizontalAlignment.CENTER);
+        errorStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+        HSSFFont errorFont = work.createFont();
+        errorFont.setColor(HSSFColor.HSSFColorPredefined.WHITE.getIndex());
+        errorFont.setBold(false);
+        errorStyle.setFont(errorFont);
+
         Iterator<String> keys = covertData.keySet().iterator();
         List<MultiLanguageBean> langs = covertData.get("name");
         if (langs == null || langs.isEmpty()) {
@@ -183,7 +200,7 @@ public class ExcelUtil {
         }
         langs.sort(Comparator.comparing(MultiLanguageBean::getLanguageCode));
         int row = 0;
-        createRow("name", langs, langs, sheet, style, row);
+        createTitleRow("name", langs, langs, sheet, titleStyle, row);
         while (keys.hasNext()) {
             final String key = keys.next();
             if ("name".equals(key)) {
@@ -191,7 +208,7 @@ public class ExcelUtil {
                 continue;
             }
             ++row;
-            createRow(key, langs, covertData.get(key), sheet, style2, row);
+            createRow(key, langs, covertData.get(key), sheet, normalStyle, errorStyle, row);
         }
         try {
             FileOutputStream outputStream = new FileOutputStream(outputFile);
@@ -203,8 +220,8 @@ public class ExcelUtil {
         }
     }
 
-    private static int createRow(String key, List<MultiLanguageBean> langs, List<MultiLanguageBean> list,
-                                 HSSFSheet sheet, HSSFCellStyle style, int row) {
+    private static int createTitleRow(String key, List<MultiLanguageBean> langs, List<MultiLanguageBean> list,
+                                      HSSFSheet sheet, HSSFCellStyle style, int row) {
         HSSFRow itemRow = sheet.createRow(row);
         HSSFCell itemCell = itemRow.createCell(0);
         itemCell.setCellStyle(style);
@@ -221,6 +238,44 @@ public class ExcelUtil {
             }
             itemCell = itemRow.createCell(cell);
             itemCell.setCellStyle(style);
+            itemCell.setCellValue(elementText);
+            ++cell;
+        }
+        return row;
+    }
+
+    private static int createRow(String key,
+                                 List<MultiLanguageBean> langs,
+                                 List<MultiLanguageBean> list,
+                                 HSSFSheet sheet,
+                                 HSSFCellStyle style,
+                                 HSSFCellStyle errorStyle,
+                                 int row) {
+        HSSFRow itemRow = sheet.createRow(row);
+        HSSFCell itemCell = itemRow.createCell(0);
+        itemCell.setCellStyle(style);
+        itemCell.setCellValue(key);
+        int cell = 1;
+        String elementText = "";
+        for (MultiLanguageBean lang : langs) {
+            elementText = "";
+
+            MultiLanguageBean languageBean = null;
+            for (MultiLanguageBean multiLanguageBean : list) {
+                if (lang.getLanguageCode().equalsIgnoreCase(multiLanguageBean.getLanguageCode())) {
+                    languageBean = multiLanguageBean;
+                    break;
+                }
+            }
+            if (languageBean != null) {
+                elementText = languageBean.getValue();
+            }
+            itemCell = itemRow.createCell(cell);
+            if (languageBean != null && languageBean.isTranslateError()) {
+                itemCell.setCellStyle(errorStyle);
+            } else {
+                itemCell.setCellStyle(style);
+            }
             itemCell.setCellValue(elementText);
             ++cell;
         }

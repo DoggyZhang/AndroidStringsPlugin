@@ -40,6 +40,10 @@
     <idea-version since-build="181.0"/>
     <extensions defaultExtensionNs="com.intellij">
         <!-- Add your extensions here -->
+        <!-- 注册 project-level service -->
+        <projectService
+                serviceInterface="com.doggyzhang.plugin.translate.youdao.IYouDaoAuth"
+                serviceImplementation="com.doggyzhang.plugin.translate.youdao.YouDaoAuth"/>
     </extensions>
 
     <actions>

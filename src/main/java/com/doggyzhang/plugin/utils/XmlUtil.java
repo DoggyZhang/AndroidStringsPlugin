@@ -242,9 +242,9 @@ public class XmlUtil {
                 Attr attrXmlns = document.createAttribute("xmlns:tools");
                 attrXmlns.setValue("http://schemas.android.com/tools");
                 resourceElementRoot.setAttributeNode(attrXmlns);
-                Attr attrTools = document.createAttribute("tools:ignore");
-                attrTools.setValue("MissingTranslation");
-                resourceElementRoot.setAttributeNode(attrTools);
+                //Attr attrTools = document.createAttribute("tools:ignore");
+                //attrTools.setValue("MissingTranslation");
+                //resourceElementRoot.setAttributeNode(attrTools);
                 document.appendChild(resourceElementRoot);
             }
             //<!--2020-04-10--start-->
@@ -252,10 +252,10 @@ public class XmlUtil {
             NodeList elements = resourceElementRoot.getElementsByTagName("string");
             int length = elements != null ? elements.getLength() : 0;
             boolean hasElements = length > 0;
-            boolean isAdd;
+            boolean addNewElement;
             for (ElementBean datum : data) {
                 String key = datum.getKey();
-                isAdd = true;
+                addNewElement = true;
                 if (hasElements) {
                     for (int index = 0; index < length; index++) {
                         Node nNode = elements.item(index);
@@ -263,7 +263,7 @@ public class XmlUtil {
                             Element eElement = (Element) nNode;
                             Attr attr = eElement.getAttributeNode("name");
                             if (key.equalsIgnoreCase(attr.getValue())) {
-                                isAdd = false;
+                                addNewElement = false;
                                 String value = datum.getValue();
                                 if (checkSpecialCharacters(value)) {
                                     if (eElement.hasChildNodes()) {
@@ -275,35 +275,46 @@ public class XmlUtil {
                                 } else {
                                     eElement.setTextContent(value);
                                 }
+
+                                if (datum.isTranslateError()) {
+                                    eElement.setAttribute("isTranslateError", "true");
+                                } else {
+                                    eElement.removeAttribute("isTranslateError");
+                                }
                                 break;
                             }
                         }
                     }
                 }
-                if (isAdd) {
-                    if (!addComment) {
-                        addComment = true;
-                        Comment startComment = document.createComment(MessageFormat.format("{0} >> start",
-                                formatDate()));
-                        resourceElementRoot.appendChild(startComment);
-                    }
-                    Element entry = document.createElement("string");
+                if (addNewElement) {
+//                    if (!addComment) {
+//                        addComment = true;
+//                        Comment startComment = document.createComment(MessageFormat.format("{0} >> start",
+//                                formatDate()));
+//                        resourceElementRoot.appendChild(startComment);
+//                    }
+                    Element eElement = document.createElement("string");
                     Attr attr = document.createAttribute("name");
                     attr.setValue(datum.getKey());
-                    entry.setAttributeNode(attr);
+                    eElement.setAttributeNode(attr);
                     String value = datum.getValue();
                     if (checkSpecialCharacters(value)) {
-                        entry.appendChild(document.createCDATASection(value));
+                        eElement.appendChild(document.createCDATASection(value));
                     } else {
-                        entry.setTextContent(value);
+                        eElement.setTextContent(value);
                     }
-                    resourceElementRoot.appendChild(entry);
+                    if (datum.isTranslateError()) {
+                        eElement.setAttribute("isTranslateError", "true");
+                    } else {
+                        eElement.removeAttribute("isTranslateError");
+                    }
+                    resourceElementRoot.appendChild(eElement);
                 }
             }
-            if (addComment) {
-                Comment endComment = document.createComment(MessageFormat.format("{0} >> end", formatDate()));
-                resourceElementRoot.appendChild(endComment);
-            }
+//            if (addComment) {
+//                Comment endComment = document.createComment(MessageFormat.format("{0} >> end", formatDate()));
+//                resourceElementRoot.appendChild(endComment);
+//            }
             if (writer == null && remoteFile != null) {
                 writer = new OutputStreamWriter(new FileOutputStream(remoteFile), StandardCharsets.UTF_8);
             }
