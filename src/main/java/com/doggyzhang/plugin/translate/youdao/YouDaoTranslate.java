@@ -79,29 +79,43 @@ public class YouDaoTranslate implements ITranslate {
     public Map<Language, Map<String, String>> translate(
             List<String> inputList,
             Language fromLanguage,
-            List<Language> toLanguages) {
+            List<Language> toLanguages,
+            ITranslateProgress progressListener
+    ) {
         Map<Language, Map<String, String>> translateMap =
                 new HashMap<>();
         if (StringUtils.isEmpty(authKey)) {
             return translateMap;
         }
-        for (Language toLanguage : toLanguages) {
+        for (int ii = 0; ii < toLanguages.size(); ii++) {
+            Language toLanguage = toLanguages.get(ii);
             //处理翻译文本过长
+            progressListener.onProgressUpdate("翻译语言: " + toLanguage.getLanguageCode());
             int pageOffset = 5;
             Map<String, String> toLanguageMap = new HashMap<>();
             for (int i = 0; i < inputList.size(); i = i + pageOffset) {
                 //每次翻译5条
                 int fromI = Math.min(i, inputList.size() - 1);
-                int toI = Math.min(i + pageOffset, inputList.size() - 1);
-                if (fromI >= toI) {
+                int toI = Math.min(i + pageOffset, inputList.size());
+                if (fromI > toI) {
                     break;
                 }
-                List<String> targetInputList = inputList.subList(fromI, toI);
-                Map<String, String> translateResult = translateInner(
-                        targetInputList,
-                        getLanguageCodeBy(fromLanguage),
-                        getLanguageCodeBy(toLanguage)
+                progressListener.onProgressUpdate(
+                        "翻译语言: " + toLanguage.getLanguageCode()
+                                + "(" + fromI + "/" + inputList.size() + ")"
                 );
+                List<String> targetInputList = inputList.subList(fromI, toI);
+                Map<String, String> translateResult;
+                try {
+                    translateResult = translateInner(
+                            targetInputList,
+                            getLanguageCodeBy(fromLanguage),
+                            getLanguageCodeBy(toLanguage)
+                    );
+                } catch (Exception e) {
+                    progressListener.onError(e.getMessage());
+                    continue;
+                }
                 toLanguageMap.putAll(translateResult);
             }
             translateMap.put(toLanguage, toLanguageMap);
@@ -160,7 +174,7 @@ public class YouDaoTranslate implements ITranslate {
             List<String> inputList,
             String fromLanguage,
             String toLanguage
-    ) {
+    ) throws Exception {
         if (inputList == null || inputList.isEmpty()) {
             return Collections.emptyMap();
         }
@@ -196,11 +210,12 @@ public class YouDaoTranslate implements ITranslate {
                     translateMap.put(input, translate);
                 }
                 return translateMap;
+            } else {
+                throw new RuntimeException(json);
             }
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException();
         }
-        return Collections.emptyMap();
     }
 
     private String requestForHttp(String url, Map<String, String> params, String[] qArray) throws IOException {

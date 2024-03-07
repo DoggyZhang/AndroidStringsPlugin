@@ -580,7 +580,18 @@ public class ToolsFrame extends JFrame {
                         Map<Language, Map<String, String>> translateResult = translate.translate(
                                 enInputList,
                                 Language.EN,
-                                targetLanguages
+                                targetLanguages,
+                                new ITranslateProgress() {
+                                    @Override
+                                    public void onProgressUpdate(String progress) {
+                                        progressIndicator.setText(progress);
+                                    }
+
+                                    @Override
+                                    public void onError(String msg) {
+                                        showMessageDialog(msg);
+                                    }
+                                }
                         );
 
                         boolean existTranslateError = false;
