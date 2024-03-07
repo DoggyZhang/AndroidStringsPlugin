@@ -527,6 +527,7 @@ public class ToolsFrame extends JFrame {
         System.out.println("要翻译的目标语言: " + StringUtils.join(targetLanguages, ","));
         Utils.runWithNotification(() -> {
                     ProgressIndicator progressIndicator = ProgressManager.getInstance().getProgressIndicator();
+                    progressIndicator.setIndeterminate(false);
 
                     for (int i = 0; i < selectedIndices.length; i++) {
                         int index = selectedIndices[i];

@@ -86,15 +86,25 @@ public class YouDaoTranslate implements ITranslate {
             return translateMap;
         }
         for (Language toLanguage : toLanguages) {
-            translateMap.put(
-                    toLanguage,
-                    translateInner(
-                            inputList,
-                            getLanguageCodeBy(fromLanguage),
-                            getLanguageCodeBy(toLanguage)
-                    )
-            );
-
+            //处理翻译文本过长
+            int pageOffset = 5;
+            Map<String, String> toLanguageMap = new HashMap<>();
+            for (int i = 0; i < inputList.size(); i = i + pageOffset) {
+                //每次翻译5条
+                int fromI = Math.min(i, inputList.size() - 1);
+                int toI = Math.min(i + pageOffset, inputList.size() - 1);
+                if (fromI >= toI) {
+                    break;
+                }
+                List<String> targetInputList = inputList.subList(fromI, toI);
+                Map<String, String> translateResult = translateInner(
+                        targetInputList,
+                        getLanguageCodeBy(fromLanguage),
+                        getLanguageCodeBy(toLanguage)
+                );
+                toLanguageMap.putAll(translateResult);
+            }
+            translateMap.put(toLanguage, toLanguageMap);
             /*
             有道会限制API的请求频率, 这里延时等待一下
             https://ai.youdao.com/DOCSIRMA/html/trans/api/wbfy/index.html

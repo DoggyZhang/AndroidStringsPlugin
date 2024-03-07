@@ -25,7 +25,7 @@ intellij {
     //version 'IC-223.8836.41'
     version '2020.3'
     updateSinceUntilBuild false
-    localPath "C:\\DevTools\\IntelliJ IDEA\\IntelliJ IDEA Community Edition 2020.3"
+    localPath "D:\\IntelliJ IDEA Community Edition 2020.3.4"
 }
 
 sourceCompatibility = 1.11
