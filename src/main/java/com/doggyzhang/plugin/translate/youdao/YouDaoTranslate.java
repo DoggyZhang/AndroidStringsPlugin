@@ -29,6 +29,12 @@ public class YouDaoTranslate implements ITranslate {
     private String APP_KEY = null;
     private String APP_SECRET = null;
 
+    private int translateWordPerSecond = 5;
+
+    public void setTranslateWordPerSecond(int word) {
+        this.translateWordPerSecond = word;
+    }
+
 
     /**
      * 有道授权码格式
@@ -95,12 +101,11 @@ public class YouDaoTranslate implements ITranslate {
             }
             //处理翻译文本过长
             progressListener.onProgressUpdate("翻译语言: " + toLanguage.getLanguageCode());
-            int pageOffset = 5;
             Map<String, String> toLanguageMap = new HashMap<>();
-            for (int i = 0; i < inputList.size(); i = i + pageOffset) {
+            for (int i = 0; i < inputList.size(); i = i + translateWordPerSecond) {
                 //每次翻译5条
                 int fromI = Math.min(i, inputList.size() - 1);
-                int toI = Math.min(i + pageOffset, inputList.size());
+                int toI = Math.min(i + translateWordPerSecond, inputList.size());
                 if (fromI > toI) {
                     break;
                 }

@@ -67,8 +67,11 @@ public class ToolsFrame extends JFrame {
     private JPanel jPanelTranslateLanguage;
     private JCheckBox jCheckTranslateReplaceOld;
     private JButton jButtonSelectAllLanguage;
+    private JTextField jtTranslateWordPerSecond;
 
-    private ITranslate translate = new YouDaoTranslate();
+
+    //private ITranslate translate = new YouDaoTranslate();
+    private YouDaoTranslate translate = new YouDaoTranslate();
     private JFileChooser mOpenFileDialog;
     private JFileChooser mSaveFileDialog;
     private JFileChooser mSelectModuleFileDialog;
@@ -79,6 +82,7 @@ public class ToolsFrame extends JFrame {
     private String excelFilePath;
     private String moduleFolderPath;
     private String exportModuleFolderPath;
+    private static final int TRANSLATE_WORD_PER_SECOND = 10;
 
 
     public ToolsFrame(File rootDir, Project project, List<String> excelFiles,
@@ -338,6 +342,8 @@ public class ToolsFrame extends JFrame {
             jPanelTranslateLanguage.add(checkBox);
         }
 
+        jtTranslateWordPerSecond.setText(String.valueOf(TRANSLATE_WORD_PER_SECOND));
+
         Utils.sizeWindowOnScreen(this, 550, 260);
         pack();
     }
@@ -523,6 +529,13 @@ public class ToolsFrame extends JFrame {
 
         //替换旧翻译
         boolean replaceOld = jCheckTranslateReplaceOld.isSelected();
+
+        String wordPerSecond = jtTranslateWordPerSecond.getText();
+        if (StringUtils.isEmpty(wordPerSecond)) {
+            translate.setTranslateWordPerSecond(TRANSLATE_WORD_PER_SECOND);
+        } else {
+            translate.setTranslateWordPerSecond(Integer.getInteger(wordPerSecond, TRANSLATE_WORD_PER_SECOND));
+        }
 
         System.out.println("要翻译的目标语言: " + StringUtils.join(targetLanguages, ","));
         Utils.runWithNotification(() -> {

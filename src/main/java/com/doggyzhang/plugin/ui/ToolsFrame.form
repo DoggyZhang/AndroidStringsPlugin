@@ -332,6 +332,23 @@
                               <text value="新翻译替换旧文案"/>
                             </properties>
                           </component>
+                          <grid id="8872f" layout-manager="BorderLayout" hgap="0" vgap="0">
+                            <constraints/>
+                            <properties/>
+                            <border type="none"/>
+                            <children>
+                              <component id="9aced" class="javax.swing.JLabel">
+                                <constraints border-constraint="West"/>
+                                <properties>
+                                  <text value="1秒翻译几个词"/>
+                                </properties>
+                              </component>
+                              <component id="d5b3e" class="javax.swing.JTextField" binding="jtTranslateWordPerSecond">
+                                <constraints border-constraint="East"/>
+                                <properties/>
+                              </component>
+                            </children>
+                          </grid>
                         </children>
                       </grid>
                       <grid id="ff03b" layout-manager="FlowLayout" hgap="5" vgap="5" flow-align="1">
