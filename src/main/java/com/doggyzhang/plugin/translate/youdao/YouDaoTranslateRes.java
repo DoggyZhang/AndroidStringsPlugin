@@ -11,7 +11,7 @@ import java.util.*;
  */
 public class YouDaoTranslateRes {
     @SerializedName("errorCode")
-    int errorCode;
+    int errorCode = 0;
     @SerializedName("l")
     String l;
     @SerializedName("translateResults")

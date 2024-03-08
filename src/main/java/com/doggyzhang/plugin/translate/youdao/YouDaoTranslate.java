@@ -89,6 +89,10 @@ public class YouDaoTranslate implements ITranslate {
         }
         for (int ii = 0; ii < toLanguages.size(); ii++) {
             Language toLanguage = toLanguages.get(ii);
+            if (fromLanguage == toLanguage) {
+                //同一个语言不需要翻译
+                continue;
+            }
             //处理翻译文本过长
             progressListener.onProgressUpdate("翻译语言: " + toLanguage.getLanguageCode());
             int pageOffset = 5;
@@ -112,23 +116,29 @@ public class YouDaoTranslate implements ITranslate {
                             getLanguageCodeBy(fromLanguage),
                             getLanguageCodeBy(toLanguage)
                     );
+                    try {
+                        Thread.sleep(1100);
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
                 } catch (Exception e) {
                     progressListener.onError(e.getMessage());
                     continue;
                 }
                 toLanguageMap.putAll(translateResult);
+
+                /*
+                        有道会限制API的请求频率, 这里延时等待一下
+                        https://ai.youdao.com/DOCSIRMA/html/trans/api/wbfy/index.html
+                        {"msg":"Error Code:411","requestId":"0ca9fb52-484c-4b03-9f70-74e19ff5efde","errorCode":"411"}
+                    */
+                try {
+                    Thread.sleep(1100);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
             }
             translateMap.put(toLanguage, toLanguageMap);
-            /*
-            有道会限制API的请求频率, 这里延时等待一下
-            https://ai.youdao.com/DOCSIRMA/html/trans/api/wbfy/index.html
-            {"msg":"Error Code:411","requestId":"0ca9fb52-484c-4b03-9f70-74e19ff5efde","errorCode":"411"}
-             */
-            try {
-                Thread.sleep(500);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
         }
         return translateMap;
     }
@@ -201,6 +211,9 @@ public class YouDaoTranslate implements ITranslate {
             Object o = GsonUtil.fromJson(json, YouDaoTranslateRes.class);
             if (o != null) {
                 YouDaoTranslateRes res = (YouDaoTranslateRes) o;
+                if (res.errorCode != 0) {
+                    throw new RuntimeException(fromLanguage + " -> " + toLanguage + ", " + json);
+                }
                 Map<String, String> translateMap = new HashMap<>();
                 for (String input : inputList) {
                     String translate = res.findTranslate(input);
@@ -211,10 +224,10 @@ public class YouDaoTranslate implements ITranslate {
                 }
                 return translateMap;
             } else {
-                throw new RuntimeException(json);
+                throw new RuntimeException(fromLanguage + " -> " + toLanguage + ", " + json);
             }
-        } catch (IOException e) {
-            throw new RuntimeException();
+        } catch (Exception e) {
+            throw new RuntimeException(fromLanguage + " -> " + toLanguage + ", " + e.getMessage());
         }
     }
 
