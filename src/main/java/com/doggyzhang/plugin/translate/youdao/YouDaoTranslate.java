@@ -158,6 +158,8 @@ public class YouDaoTranslate implements ITranslate {
                 return "zh-CHS";
             case EN:
                 return "en";
+            case AR:
+                return "ar";
             case HI:
                 return "hi";
             case TR:
@@ -181,7 +183,7 @@ public class YouDaoTranslate implements ITranslate {
             case ES:
                 return "es";
             default:
-                return "";
+                throw new IllegalStateException("Unexpected value: " + language);
         }
     }
 
@@ -210,6 +212,7 @@ public class YouDaoTranslate implements ITranslate {
         params.put("detectFilter", "false");
         //params.put("vocabId", "您的用户词表ID");
         /** 处理结果 */
+        System.out.println("translateInner, requestParams: " + params.toString());
         try {
             String json = requestForHttp(YOUDAO_URL, params, qArray);
             System.out.println(json);
