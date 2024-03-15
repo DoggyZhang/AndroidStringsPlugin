@@ -1,7 +1,7 @@
 <idea-plugin>
     <id>com.doggyzhang.strings.plugin.id</id>
     <name>AndroidStringsTool-Plus</name>
-    <version>2.0.4</version>
+    <version>2.0.5</version>
     <vendor email="doggyzhang1219@gmail.com" url="https://github.com/DoggyZhang/AndroidStringsPlugin">DoggyZhang</vendor>
 
     <description><![CDATA[

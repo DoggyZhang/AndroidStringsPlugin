@@ -95,7 +95,7 @@ public class YouDaoTranslate implements ITranslate {
         }
         for (int ii = 0; ii < toLanguages.size(); ii++) {
             Language toLanguage = toLanguages.get(ii);
-            if (fromLanguage == toLanguage) {
+            if (fromLanguage.getLanguageCode().equals(toLanguage.getLanguageCode())) {
                 //同一个语言不需要翻译
                 continue;
             }
