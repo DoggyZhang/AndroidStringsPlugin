@@ -531,10 +531,15 @@ public class ToolsFrame extends JFrame {
         boolean replaceOld = jCheckTranslateReplaceOld.isSelected();
 
         String wordPerSecond = jtTranslateWordPerSecond.getText();
-        if (StringUtils.isEmpty(wordPerSecond)) {
+        if (wordPerSecond == null || StringUtils.isEmpty(wordPerSecond)) {
             translate.setTranslateWordPerSecond(TRANSLATE_WORD_PER_SECOND);
         } else {
-            translate.setTranslateWordPerSecond(Integer.getInteger(wordPerSecond, TRANSLATE_WORD_PER_SECOND));
+            try {
+                translate.setTranslateWordPerSecond(Integer.parseInt(wordPerSecond.trim()));
+            } catch (Exception e) {
+                showMessageDialog("\"1秒翻译几个词\" 输入不是数字");
+                return;
+            }
         }
 
         System.out.println("要翻译的目标语言: " + StringUtils.join(targetLanguages, ","));
