@@ -368,7 +368,10 @@ public class XmlUtil {
      * @version 1.0
      */
     private static boolean checkSpecialCharacters(String value) {
-        return value.contains("<") || value.contains(">");
+        if (value != null && !value.isEmpty()) {
+            return value.contains("<") || value.contains(">");
+        }
+        return false;
     }
 
     private static void removeAllChild(Element e) {
