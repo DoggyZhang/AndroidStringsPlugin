@@ -15,7 +15,7 @@ public class Configs {
     /**
      * 多语言编译前文件夹
      */
-    public static final String STRINGS_MAIN_RES_PATH_INCLUDE = "**/main/res/**/values*/strings.xml";
+    public static final String STRINGS_MAIN_RES_PATH_INCLUDE = "**/main/res/**/values*/*strings.xml";
     /**
      * 项目文件夹
      */

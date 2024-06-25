@@ -1,10 +1,8 @@
 package com.doggyzhang.plugin.utils;
 
-import com.doggyzhang.plugin.bean.ElementBean;
-import com.doggyzhang.plugin.bean.MultiLanguageBean;
-import com.doggyzhang.plugin.bean.MutableTreeNode;
-import com.doggyzhang.plugin.bean.TreeModelBean;
+import com.doggyzhang.plugin.bean.*;
 import com.doggyzhang.plugin.configs.Configs;
+import com.doggyzhang.plugin.translate.Language;
 import org.apache.commons.lang3.StringUtils;
 import org.w3c.dom.*;
 import org.w3c.dom.bootstrap.DOMImplementationRegistry;
@@ -24,7 +22,6 @@ import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
-import java.text.MessageFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -40,7 +37,7 @@ public class XmlUtil {
         return DEFAULT_DATE_FORMAT.get().format(new Date());
     }
 
-    private static boolean checkFile(File remoteFile, String lang) {
+    private static boolean checkValuesFolder(File remoteFile, String lang) {
         if (remoteFile == null) {
             return false;
         }
@@ -99,6 +96,44 @@ public class XmlUtil {
         }
     }
 
+    public static void forceReplaceToFile(List<ElementBean> datas, boolean isFormat, File rootDir, String stringsCode, String fileName) {
+        if (fileName == null || fileName.isEmpty()) {
+            return;
+        }
+        //替换覆盖
+        List<String> mainFolderFileNames = FileUtils.scanMainResFiles(rootDir);
+        for (String xmlName : mainFolderFileNames) {
+            String[] split = StringUtils.split(xmlName, File.separator);
+            if (split != null && split.length > 0) {
+                String lastName = split[split.length - 1];
+
+                final File toXMLFile = new File(rootDir, xmlName);
+                if (lastName.equals(fileName) && checkValuesFolder(toXMLFile, stringsCode)) {
+                    //找到了要写入的文件
+                    forceChangeXmlDataByDom(toXMLFile, isFormat, stringsCode, datas);
+                    return;
+                }
+            }
+        }
+
+        //创建新的
+        String rootDirPath = rootDir.getAbsolutePath();
+        //剩余数据是没有匹配的文件，需要新创建文件
+        final File parentFile;
+        if (rootDirPath.contains("/main")) {
+            parentFile = new File(rootDir, "/res/");
+        } else {
+            parentFile = new File(rootDir, "/main/res/");
+        }
+        final String valueName = createValuesFile(stringsCode);
+        final File valuesFile = new File(parentFile, valueName);
+        if (!valuesFile.exists()) {
+            valuesFile.mkdirs();
+        }
+        final File remoteFile = new File(valuesFile, fileName);
+        forceChangeXmlDataByDom(remoteFile, isFormat, stringsCode, datas);
+    }
+
     static void forceReplace(Map<String, List<ElementBean>> datas, boolean isFormat, List<String> fileNames,
                              File rootDir) {
         Iterator<Map.Entry<String, List<ElementBean>>> iterator = datas.entrySet().iterator();
@@ -107,7 +142,7 @@ public class XmlUtil {
             final String lang = entry.getKey();
             for (String fileName : fileNames) {
                 final File remoteFile = new File(rootDir, fileName);
-                if (checkFile(remoteFile, lang)) {
+                if (checkValuesFolder(remoteFile, lang)) {
                     forceChangeXmlDataByDom(remoteFile, isFormat, lang, datas.get(lang));
                     //写入文件之后删除数据
                     iterator.remove();
@@ -230,7 +265,7 @@ public class XmlUtil {
                 InputStream inputStream = new FileInputStream(remoteFile);
                 Reader reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
                 InputSource is = new InputSource(reader);
-                is.setEncoding("UTF-8");
+                is.setEncoding("utf-8");
                 document = docBuilder.parse(is);
             } else {
                 document = docBuilder.newDocument();
@@ -377,8 +412,8 @@ public class XmlUtil {
         }
     }
 
-    public static Map<String, List<MultiLanguageBean>> paresXmlMultiLanguage(File rootDir, boolean isOnlyMainFolder) {
-        Map<String, List<MultiLanguageBean>> datas = new HashMap<>();
+    public static Map<String, ArrayList<LanguageFile>> paresXmlMultiLanguage(File rootDir, boolean isOnlyMainFolder) {
+        Map<String, ArrayList<LanguageFile>> datas = new HashMap<>();
         try {
             String mainFolderPattern = "**/" + Configs.STRINGS_MAIN_RES_PATH_INCLUDE;
             List<String> mainFolderFileNames = FileUtils.scanFiles(rootDir, mainFolderPattern);
@@ -388,7 +423,16 @@ public class XmlUtil {
                     final File parentFile = remoteFile.getParentFile();
                     final String parentFileName = parentFile.getName();
                     final String languageCode = splitLanguage(parentFileName);
-                    datas.put(languageCode, createMultiLanguage(languageCode, remoteFile));
+                    if (languageCode == null || languageCode.isEmpty()) {
+                        continue;
+                    }
+                    ArrayList<LanguageFile> languageFileList = datas.get(languageCode);
+                    if (languageFileList == null) {
+                        languageFileList = new ArrayList<>();
+                        datas.put(languageCode, languageFileList);
+                    }
+                    LanguageFile languageFile = new LanguageFile(remoteFile.getName(), createMultiLanguage(languageCode, remoteFile));
+                    languageFileList.add(languageFile);
                 }
             } else {
                 String buildFolderPattern = "**/" + Configs.STRINGS_BUILD_PATH_INCLUDE;
@@ -402,7 +446,16 @@ public class XmlUtil {
                         final String parentFileName = parentFile.getName();
                         if (buildFileName.equalsIgnoreCase(parentFileName + ".xml")) {
                             String languageCode = splitLanguage(parentFileName);
-                            datas.put(languageCode, createMultiLanguage(languageCode, buildRemoteFile));
+                            if (languageCode == null || languageCode.isEmpty()) {
+                                continue;
+                            }
+                            ArrayList<LanguageFile> languageFileList = datas.get(languageCode);
+                            if (languageFileList == null) {
+                                languageFileList = new ArrayList<>();
+                                datas.put(languageCode, languageFileList);
+                            }
+                            LanguageFile languageFile = new LanguageFile(buildRemoteFile.getName(), createMultiLanguage(languageCode, buildRemoteFile));
+                            languageFileList.add(languageFile);
                             break;
                         }
                     }
@@ -455,12 +508,18 @@ public class XmlUtil {
 
     static String splitLanguage(String valuesName) {
         if (valuesName == null || !valuesName.contains("-")) {
-            return "en";
+            return Language.EN.getLanguageCode();
         }
         int index = valuesName.indexOf("-");
         if (index + 1 >= valuesName.length()) {
-            return "en";
+            return Language.EN.getLanguageCode();
         }
-        return valuesName.substring(index + 1);
+        String stringCode = valuesName.substring(index + 1);
+        Language language = Language.getLanguageFrom(stringCode);
+        if (language != null) {
+            return language.getLanguageCode();
+        } else {
+            return null;
+        }
     }
 }

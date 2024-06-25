@@ -570,12 +570,12 @@ public class ToolsFrame extends JFrame {
                         );
                         progressIndicator.setFraction(0.2);
 
-                        Map<String, List<MultiLanguageBean>> languages = XmlUtil.paresXmlMultiLanguage(moduleFile, true);
+                        Map<String, ArrayList<LanguageFile>> languages = XmlUtil.paresXmlMultiLanguage(moduleFile, true);
                         System.out.println("  当前模块下的语种: " + StringUtils.join(languages.keySet(), ","));
 
                         //检查是否含有"en"
                         if (!languages.containsKey("en")) {
-                            showMessageDialog("模块:" + modelBean.getShowPath() + ", 没有strings.xml文件");
+                            showMessageDialog("模块:" + modelBean.getShowPath() + ", 没有提前翻译好英文");
                             return;
                         }
 
@@ -587,13 +587,20 @@ public class ToolsFrame extends JFrame {
                         progressIndicator.setFraction(0.5);
 
                         //以英文翻译为模板来翻译
-                        List<MultiLanguageBean> enTranslateList = languages.get("en");
-                        List<String> enInputList = enTranslateList.stream().map(new Function<MultiLanguageBean, String>() {
-                            @Override
-                            public String apply(MultiLanguageBean multiLanguageBean) {
-                                return multiLanguageBean.getValue();
+                        List<LanguageFile> enTranslateList = languages.get("en");
+                        List<String> enInputList = new ArrayList<>();
+                        for (LanguageFile languageFile : enTranslateList) {
+                            List<MultiLanguageBean> languageBeans = languageFile.getLanguageBeans();
+                            if (languageBeans != null && !languageBeans.isEmpty()) {
+                                List<String> stringsList = languageBeans.stream().map(new Function<MultiLanguageBean, String>() {
+                                    @Override
+                                    public String apply(MultiLanguageBean multiLanguageBean) {
+                                        return multiLanguageBean.getValue();
+                                    }
+                                }).collect(Collectors.toList());
+                                enInputList.addAll(stringsList);
                             }
-                        }).collect(Collectors.toList());
+                        }
                         translate.setAuthKey(project, authKey);
                         Map<Language, Map<String, String>> translateResult = translate.translate(
                                 enInputList,
@@ -623,8 +630,120 @@ public class ToolsFrame extends JFrame {
                                 //已经有翻译了
                                 if (replaceOld) {
                                     //替换旧翻译
+                                    for (LanguageFile enLanguageFile : enTranslateList) {
+                                        String enFile = enLanguageFile.getFileName();
+                                        List<MultiLanguageBean> enLanguageBeans = enLanguageFile.getLanguageBeans();
+                                        if (enFile == null || enLanguageBeans == null || enLanguageBeans.isEmpty()) {
+                                            continue;
+                                        }
+
+                                        List<MultiLanguageBean> newTranslateList = new ArrayList<>();
+                                        for (MultiLanguageBean enTranslate : enLanguageBeans) {
+                                            final MultiLanguageBean newTranslateBean = new MultiLanguageBean();
+                                            newTranslateBean.setLanguage("");
+                                            newTranslateBean.setLanguageCode(targetLanguage.getLanguageCode());
+                                            newTranslateBean.setName(enTranslate.getName());
+
+                                            String enValue = enTranslate.getValue();
+                                            String targetValue = translateEntry.getValue().get(enValue);
+                                            //检查翻译的是否准确(占位符)
+                                            long enPlaceHolderCount = XMLPlaceHolderChecker.countPlaceHolder(enValue);
+                                            long targetPlaceHolderCount = XMLPlaceHolderChecker.countPlaceHolder(targetValue);
+                                            newTranslateBean.setValue(targetValue);
+                                            if (enPlaceHolderCount != targetPlaceHolderCount) {
+                                                existTranslateError = true;
+                                                newTranslateBean.setTranslateError(true);
+                                            } else {
+                                                newTranslateBean.setTranslateError(false);
+                                            }
+
+                                            newTranslateList.add(newTranslateBean);
+                                        }
+
+                                        ArrayList<LanguageFile> languageFiles = languages.get(targetLanguage.getLanguageCode());
+                                        if (languageFiles != null) {
+                                            languageFiles.removeIf(new Predicate<LanguageFile>() {
+                                                @Override
+                                                public boolean test(LanguageFile languageFile) {
+                                                    return languageFile.getFileName().equals(enFile);
+                                                }
+                                            });
+                                            languageFiles.add(new LanguageFile(enFile, newTranslateList));
+                                        } else {
+                                            languageFiles = new ArrayList<>();
+                                            languageFiles.add(new LanguageFile(enFile, newTranslateList));
+                                            languages.put(targetLanguage.getLanguageCode(), languageFiles);
+                                        }
+                                    }
+
+                                } else {
+                                    //补全缺失部分
+                                    ArrayList<LanguageFile> oldTranslateList = languages.get(targetLanguage.getLanguageCode());
+                                    if (oldTranslateList == null) {
+                                        oldTranslateList = new ArrayList<>();
+                                        languages.put(targetLanguage.getLanguageCode(), oldTranslateList);
+                                    }
+                                    for (LanguageFile enLanguageFile : enTranslateList) {
+                                        String enFileName = enLanguageFile.getFileName();
+                                        List<MultiLanguageBean> enLanguageBeans = enLanguageFile.getLanguageBeans();
+                                        if (enFileName == null || enLanguageBeans == null || enLanguageBeans.isEmpty()) {
+                                            continue;
+                                        }
+                                        LanguageFile oldLanguageFile = null;
+                                        List<MultiLanguageBean> oldLanguageBeans = null;
+                                        for (LanguageFile oldFile : oldTranslateList) {
+                                            String oldFileName = oldFile.getFileName();
+                                            if (oldFileName != null && oldFileName.equals(enFileName)) {
+                                                oldLanguageFile = oldFile;
+                                                oldLanguageBeans = oldFile.getLanguageBeans();
+                                                break;
+                                            }
+                                        }
+                                        if (oldLanguageFile == null) {
+                                            oldLanguageBeans = new ArrayList<>();
+                                            oldTranslateList.add(new LanguageFile(enFileName, oldLanguageBeans));
+                                        }
+
+                                        for (MultiLanguageBean enTranslate : enLanguageBeans) {
+                                            boolean isExist = false;
+                                            for (MultiLanguageBean oldTranslate : oldLanguageBeans) {
+                                                if (oldTranslate.getName().equals(enTranslate.getName())) {
+                                                    isExist = true;
+                                                    break;
+                                                }
+                                            }
+                                            if (!isExist) {
+                                                //旧翻译缺失
+                                                final MultiLanguageBean newTranslateBean = new MultiLanguageBean();
+                                                newTranslateBean.setLanguage("");
+                                                newTranslateBean.setLanguageCode(targetLanguage.getLanguageCode());
+                                                newTranslateBean.setName(enTranslate.getName());
+
+                                                String enValue = enTranslate.getValue();
+                                                String targetValue = translateEntry.getValue().get(enValue);
+                                                //检查翻译的是否准确(占位符)
+                                                long enPlaceHolderCount = XMLPlaceHolderChecker.countPlaceHolder(enValue);
+                                                long targetPlaceHolderCount = XMLPlaceHolderChecker.countPlaceHolder(targetValue);
+                                                newTranslateBean.setValue(targetValue);
+                                                if (enPlaceHolderCount != targetPlaceHolderCount) {
+                                                    existTranslateError = true;
+                                                    newTranslateBean.setTranslateError(true);
+                                                } else {
+                                                    newTranslateBean.setTranslateError(false);
+                                                }
+                                                oldLanguageBeans.add(newTranslateBean);
+                                            }
+                                        }
+                                    }
+                                }
+                            } else {
+                                //没有该翻译,创建该翻译
+                                for (LanguageFile enLanguageFile : enTranslateList) {
+                                    String enFileName = enLanguageFile.getFileName();
+                                    List<MultiLanguageBean> enLanguageBeans = enLanguageFile.getLanguageBeans();
+
                                     List<MultiLanguageBean> newTranslateList = new ArrayList<>();
-                                    for (MultiLanguageBean enTranslate : enTranslateList) {
+                                    for (MultiLanguageBean enTranslate : enLanguageBeans) {
                                         final MultiLanguageBean newTranslateBean = new MultiLanguageBean();
                                         newTranslateBean.setLanguage("");
                                         newTranslateBean.setLanguageCode(targetLanguage.getLanguageCode());
@@ -645,67 +764,14 @@ public class ToolsFrame extends JFrame {
 
                                         newTranslateList.add(newTranslateBean);
                                     }
-                                    languages.put(targetLanguage.getLanguageCode(), newTranslateList);
-                                } else {
-                                    //补全缺失部分
-                                    List<MultiLanguageBean> oldTranslateList = languages.get(targetLanguage.getLanguageCode());
-                                    for (MultiLanguageBean enTranslate : enTranslateList) {
-                                        boolean isExist = false;
-                                        for (MultiLanguageBean oldTranslate : oldTranslateList) {
-                                            if (oldTranslate.getName().equals(enTranslate.getName())) {
-                                                isExist = true;
-                                                break;
-                                            }
-                                        }
-                                        if (!isExist) {
-                                            //旧翻译缺失
-                                            final MultiLanguageBean newTranslateBean = new MultiLanguageBean();
-                                            newTranslateBean.setLanguage("");
-                                            newTranslateBean.setLanguageCode(targetLanguage.getLanguageCode());
-                                            newTranslateBean.setName(enTranslate.getName());
 
-                                            String enValue = enTranslate.getValue();
-                                            String targetValue = translateEntry.getValue().get(enValue);
-                                            //检查翻译的是否准确(占位符)
-                                            long enPlaceHolderCount = XMLPlaceHolderChecker.countPlaceHolder(enValue);
-                                            long targetPlaceHolderCount = XMLPlaceHolderChecker.countPlaceHolder(targetValue);
-                                            newTranslateBean.setValue(targetValue);
-                                            if (enPlaceHolderCount != targetPlaceHolderCount) {
-                                                existTranslateError = true;
-                                                newTranslateBean.setTranslateError(true);
-                                            } else {
-                                                newTranslateBean.setTranslateError(false);
-                                            }
-
-                                            oldTranslateList.add(newTranslateBean);
-                                        }
+                                    ArrayList<LanguageFile> languageFiles = languages.get(targetLanguage.getLanguageCode());
+                                    if (languageFiles == null) {
+                                        languageFiles = new ArrayList<>();
+                                        languages.put(targetLanguage.getLanguageCode(), languageFiles);
                                     }
+                                    languageFiles.add(new LanguageFile(enFileName, newTranslateList));
                                 }
-                            } else {
-                                //没有该翻译,创建该翻译
-                                List<MultiLanguageBean> newTranslateList = new ArrayList<>();
-                                for (MultiLanguageBean enTranslate : enTranslateList) {
-                                    final MultiLanguageBean newTranslateBean = new MultiLanguageBean();
-                                    newTranslateBean.setLanguage("");
-                                    newTranslateBean.setLanguageCode(targetLanguage.getLanguageCode());
-                                    newTranslateBean.setName(enTranslate.getName());
-
-                                    String enValue = enTranslate.getValue();
-                                    String targetValue = translateEntry.getValue().get(enValue);
-                                    //检查翻译的是否准确(占位符)
-                                    long enPlaceHolderCount = XMLPlaceHolderChecker.countPlaceHolder(enValue);
-                                    long targetPlaceHolderCount = XMLPlaceHolderChecker.countPlaceHolder(targetValue);
-                                    newTranslateBean.setValue(targetValue);
-                                    if (enPlaceHolderCount != targetPlaceHolderCount) {
-                                        existTranslateError = true;
-                                        newTranslateBean.setTranslateError(true);
-                                    } else {
-                                        newTranslateBean.setTranslateError(false);
-                                    }
-
-                                    newTranslateList.add(newTranslateBean);
-                                }
-                                languages.put(targetLanguage.getLanguageCode(), newTranslateList);
                             }
                         }
                         System.out.println("  替换(补充)旧文案");
@@ -714,26 +780,38 @@ public class ToolsFrame extends JFrame {
                         );
                         progressIndicator.setFraction(0.8);
                         //替换旧翻译
-                        Map<String, List<ElementBean>> replaceData = new HashMap<>();
-                        for (Map.Entry<String, List<MultiLanguageBean>> translateData : languages.entrySet()) {
-                            if (translateData.getKey().equals("en")) {
+                        for (Map.Entry<String, ArrayList<LanguageFile>> translateData : languages.entrySet()) {
+                            String languageCode = translateData.getKey();
+                            if ("en".equals(languageCode)) {
                                 //英语不纳入最后的替换操作
                                 continue;
                             }
-                            List<ElementBean> replaceList = translateData.getValue().stream().map(new Function<MultiLanguageBean, ElementBean>() {
-                                @Override
-                                public ElementBean apply(MultiLanguageBean multiLanguageBean) {
-                                    return new ElementBean(
-                                            multiLanguageBean.getName(),
-                                            multiLanguageBean.getValue(),
-                                            multiLanguageBean.isTranslateError()
-                                    );
+                            boolean resolveLanguage = false;
+                            for (Language targetLanguage : targetLanguages) {
+                                if (targetLanguage.getLanguageCode().equals(languageCode)) {
+                                    resolveLanguage = true;
                                 }
-                            }).collect(Collectors.toList());
-                            replaceData.put(translateData.getKey(), replaceList);
-                        }
-                        if (!replaceData.isEmpty()) {
-                            XmlUtil.forceReplace(replaceData, true, moduleFile);
+                            }
+                            if (!resolveLanguage) {
+                                //不是目标语言
+                                continue;
+                            }
+
+                            for (LanguageFile languageFile : translateData.getValue()) {
+                                List<ElementBean> replaceList = languageFile.getLanguageBeans().stream().map(new Function<MultiLanguageBean, ElementBean>() {
+                                    @Override
+                                    public ElementBean apply(MultiLanguageBean multiLanguageBean) {
+                                        return new ElementBean(
+                                                multiLanguageBean.getName(),
+                                                multiLanguageBean.getValue(),
+                                                multiLanguageBean.isTranslateError()
+                                        );
+                                    }
+                                }).collect(Collectors.toList());
+                                if (!replaceList.isEmpty()) {
+                                    XmlUtil.forceReplaceToFile(replaceList, true, moduleFile, Language.getStringsCodeBy(languageCode), languageFile.getFileName());
+                                }
+                            }
                         }
 
                         //导出新翻译
@@ -745,7 +823,7 @@ public class ToolsFrame extends JFrame {
                                     currentProgressStr + "导出Excel"
                             );
                             progressIndicator.setFraction(0.9);
-                            ExcelUtil.generateExcelFile(new File(outputFolder, modelBean.getShowPath() + ".xls"), languages);
+                            ExcelUtil.generateExcelFile(outputFolder, "[" + modelBean.getShowPath() + "]" + " ", languages);
                         }
 
                         //弹窗提示存在翻译错误问题,需要手动纠正
@@ -790,20 +868,10 @@ public class ToolsFrame extends JFrame {
             moduleFile = new File(rootDir, Configs.PROJECT_APP_FOLDER);
         }
 
-        File file = new File(saveFilePath);
-        if (file.isDirectory()) {
-            if (StringUtils.isEmpty(exportModuleFolderPath)) {
-                String dateFormat = new SimpleDateFormat("yyyy-MM-dd-HH-mm").format(new Date());
-                file = new File(saveFilePath, project.getName() + "-" + dateFormat + ".xls");
-            } else {
-                file = new File(saveFilePath, moduleFile.getName() + ".xls");
-            }
-        }
-
-        File outputFile = file;
+        File outputFile = new File(saveFilePath);
         Utils.runWithNotification(() -> {
-            Map<String, List<MultiLanguageBean>> languages = XmlUtil.paresXmlMultiLanguage(moduleFile, !containLib);
-            ExcelUtil.generateExcelFile(outputFile, languages);
+            Map<String, ArrayList<LanguageFile>> languages = XmlUtil.paresXmlMultiLanguage(moduleFile, !containLib);
+            ExcelUtil.generateExcelFile(outputFile, "", languages);
             showMessageDialog("生成Excel文件成功！");
         }, project);
     }
@@ -828,12 +896,11 @@ public class ToolsFrame extends JFrame {
                 } else {
                     moduleFile = new File(rootDir, Configs.PROJECT_APP_FOLDER);
                 }
-                File outputFile = new File(saveFileDir, moduleFile.getName() + ".xls");
-                Map<String, List<MultiLanguageBean>> languages = XmlUtil.paresXmlMultiLanguage(moduleFile, !containLib);
+                Map<String, ArrayList<LanguageFile>> languages = XmlUtil.paresXmlMultiLanguage(moduleFile, !containLib);
                 if (languages.isEmpty()) {
                     continue;
                 }
-                ExcelUtil.generateExcelFile(outputFile, languages);
+                ExcelUtil.generateExcelFile(dir, "[" + moduleFile.getName() + "]" + " ", languages);
                 CharCountData chineseCharCount = collectChineseInfo(moduleFile.getName(), languages);
                 if (chineseCharCount.count > 0) {
                     chineseCountList.add(chineseCharCount);
@@ -845,17 +912,22 @@ public class ToolsFrame extends JFrame {
         }, project);
     }
 
-    private CharCountData collectChineseInfo(String modelName, Map<String, List<MultiLanguageBean>> languages) {
+    private CharCountData collectChineseInfo(String modelName, Map<String, ArrayList<LanguageFile>> languages) {
         if (languages == null || languages.isEmpty()) {
             return new CharCountData(modelName, 0);
         }
         //统计中文字数
-        List<MultiLanguageBean> zh = languages.get("zh");
+        ArrayList<LanguageFile> zhLanguageFiles = languages.get(Language.ZH.getLanguageCode());
         int count = 0;
-        if (zh != null) {
-            for (MultiLanguageBean bean : zh) {
-                String value = bean.getValue();
-                count += chineseCount(value);
+        if (zhLanguageFiles != null) {
+            for (LanguageFile zhLanguageFile : zhLanguageFiles) {
+                List<MultiLanguageBean> languageBeans = zhLanguageFile.getLanguageBeans();
+                if (languageBeans != null) {
+                    for (MultiLanguageBean bean : languageBeans) {
+                        String value = bean.getValue();
+                        count += chineseCount(value);
+                    }
+                }
             }
         }
         return new CharCountData(modelName, count);

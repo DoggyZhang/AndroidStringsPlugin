@@ -50,4 +50,15 @@ public class FileUtils {
         return mainFolderFinder.findIncludeFile(rootDir);
     }
 
+    public static String getFileNameWithoutExtension(String fileName) {
+        if (fileName == null || fileName.isEmpty()) {
+            return "";
+        }
+        int i = fileName.lastIndexOf(".");
+        if (i >= 0) {
+            return fileName.substring(0, i);
+        }
+        return fileName;
+    }
+
 }

@@ -1,6 +1,7 @@
 package com.doggyzhang.plugin.utils;
 
 import com.doggyzhang.plugin.bean.ElementBean;
+import com.doggyzhang.plugin.bean.LanguageFile;
 import com.doggyzhang.plugin.bean.MultiLanguageBean;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.hssf.usermodel.*;
@@ -136,14 +137,56 @@ public class ExcelUtil {
     /**
      * 生成Excel 文件
      *
-     * @param outputFile
      * @param languages
      */
-    public static void generateExcelFile(File outputFile, Map<String, List<MultiLanguageBean>> languages) {
+    public static void generateExcelFile(File outputFolder, String prefix, Map<String, ArrayList<LanguageFile>> languages) {
         if (languages == null || languages.isEmpty()) {
             return;
         }
-        Map<String, List<MultiLanguageBean>> covertData = convertData(languages);
+        //统计所有 _strings.xml 字符串文件
+        Set<String> fileNames = new HashSet<>();
+        for (ArrayList<LanguageFile> value : languages.values()) {
+            for (LanguageFile languageFile : value) {
+                fileNames.add(languageFile.getFileName());
+            }
+        }
+        //统计所有语种
+        Set<String> languageCodes = languages.keySet();
+
+        for (String fileName : fileNames) {
+            File toExcelFile = new File(outputFolder, prefix + FileUtils.getFileNameWithoutExtension(fileName) + ".xls");
+            Map<String, List<MultiLanguageBean>> outputDatas = new HashMap<>();
+            for (String languageCode : languageCodes) {
+                ArrayList<MultiLanguageBean> list = new ArrayList<>();
+                ArrayList<LanguageFile> languageFiles = languages.get(languageCode);
+                if (languageFiles != null) {
+                    for (LanguageFile languageFile : languageFiles) {
+                        if (languageFile.getFileName().equals(fileName)) {
+                            list.addAll(languageFile.getLanguageBeans());
+                            break;
+                        }
+                    }
+                }
+                outputDatas.put(languageCode, list);
+            }
+            writeToExcel(toExcelFile, outputDatas);
+        }
+    }
+
+
+    private static void writeToExcel(File outputFile, Map<String, List<MultiLanguageBean>> datas) {
+        if (!outputFile.exists()) {
+            try {
+                File parentFile = outputFile.getParentFile();
+                if (!parentFile.exists()) {
+                    parentFile.mkdirs();
+                }
+                outputFile.createNewFile();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        Map<String, List<MultiLanguageBean>> covertData = convertData(datas);
         HSSFWorkbook work = new HSSFWorkbook();
         HSSFSheet sheet = work.createSheet();
 
