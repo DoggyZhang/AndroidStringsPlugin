@@ -1030,9 +1030,6 @@ public class ToolsFrame extends JFrame {
                                         String value = languageBean.getValue();
                                         if (value != null && !value.isEmpty()) {
                                             String newText = Utils.charEscaping(value);
-                                            if("common_search_enter_user_id".equals(languageBean.getName())){
-                                                System.out.println();
-                                            }
                                             if (!newText.equals(value)) {
                                                 languageBean.setValue(newText);
                                             }
