@@ -33,6 +33,49 @@ public class Utils {
         return text;
     }
 
+    public static String charEscaping(String text) {
+        if (text == null || text.isEmpty()) {
+            return "";
+        }
+        if (XmlUtil.checkSpecialCharacters(text)) {
+            return text;
+        }
+//        text = charEscapingInner(text, '&', "&amp;");
+        {
+            String replaceText = text;
+            int i = text.indexOf("\\\"");
+            if (i >= 0) {
+                //清除\"
+                replaceText = replaceText.replace("\\\"", "\"");
+            }
+            i = replaceText.indexOf("\"");
+            if (i >= 0) {
+                text = replaceText.replace("\"", "\\\"");
+            }
+        }
+        //text = charEscapingInner(text, '\"', "&quot;");
+//        text = charEscapingInner(text, '<', "&lt;");
+//        text = charEscapingInner(text, '>', "&gt;");
+        return text;
+    }
+
+    private static String charEscapingInner(String text, char findChar, String replaceChar) {
+        int i = -1;
+        int ii = -1;
+        while (true) {
+            i = text.indexOf(findChar, i + 1);
+            ii = text.indexOf(replaceChar);
+            if (i >= 0) {
+                if (i != ii) {
+                    text = text.replace(String.valueOf(findChar), replaceChar);
+                }
+            } else {
+                break;
+            }
+        }
+        return text;
+    }
+
     public static void showMessageDialog(Project project, String message) {
         showMessageDialog(project, "提示", message);
     }

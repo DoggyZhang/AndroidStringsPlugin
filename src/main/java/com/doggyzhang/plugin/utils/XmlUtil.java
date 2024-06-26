@@ -3,6 +3,7 @@ package com.doggyzhang.plugin.utils;
 import com.doggyzhang.plugin.bean.*;
 import com.doggyzhang.plugin.configs.Configs;
 import com.doggyzhang.plugin.translate.Language;
+import org.apache.batik.util.DOMConstants;
 import org.apache.commons.lang3.StringUtils;
 import org.w3c.dom.*;
 import org.w3c.dom.bootstrap.DOMImplementationRegistry;
@@ -300,6 +301,9 @@ public class XmlUtil {
                             if (key.equalsIgnoreCase(attr.getValue())) {
                                 addNewElement = false;
                                 String value = datum.getValue();
+                                if(value.contains("&quot;")){
+                                    System.out.println();
+                                }
                                 if (checkSpecialCharacters(value)) {
                                     if (eElement.hasChildNodes()) {
                                         removeAllChild(eElement);
@@ -367,7 +371,7 @@ public class XmlUtil {
      * @date 2020/6/8 18:19
      * @version 1.0
      */
-    private static boolean checkSpecialCharacters(String value) {
+    public static boolean checkSpecialCharacters(String value) {
         if (value != null && !value.isEmpty()) {
             return value.contains("<") || value.contains(">");
         }
@@ -390,20 +394,22 @@ public class XmlUtil {
                 //Prepare the output
                 LSOutput domOutput = impls.createLSOutput();
                 domOutput.setCharacterStream(writer);
-                domOutput.setEncoding("UTF-8");
+                domOutput.setEncoding("utf-8");
                 //Prepare the serializer
                 LSSerializer domWriter = impls.createLSSerializer();
                 DOMConfiguration domConfig = domWriter.getDomConfig();
                 domConfig.setParameter("format-pretty-print", true);
                 domConfig.setParameter("element-content-whitespace", true);
-                domWriter.setNewLine("\r\n");
+                //domWriter.setNewLine("\r\n");
+                domWriter.setNewLine(System.lineSeparator());
                 domConfig.setParameter("cdata-sections", Boolean.TRUE);
+                //domConfig.setParameter("check-character-normalization", Boolean.TRUE);
                 //And finaly, write
                 domWriter.write(document, domOutput);
             } else {
                 TransformerFactory transformerFactory = TransformerFactory.newInstance();
                 Transformer transformer = transformerFactory.newTransformer();
-                transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8");
+                transformer.setOutputProperty(OutputKeys.ENCODING, "utf-8");
                 transformer.setOutputProperty(OutputKeys.INDENT, "yes");
                 DOMSource source = new DOMSource(document);
                 StreamResult consoleResult = new StreamResult(writer);
@@ -490,7 +496,7 @@ public class XmlUtil {
                         //只有当translatable ==false时才抛弃
                         if (translatable == null || !hasTranslatable || ParseUtil.toBoolean(translatable)) {
                             final String name = element.getAttribute("name");
-                            final String text = Utils.removeDoubleQuotes(element.getTextContent());
+                            final String text = element.getTextContent(); //Utils.removeDoubleQuotes(element.getTextContent());
                             if (!StringUtils.isEmpty(text)) {
                                 final MultiLanguageBean bean = new MultiLanguageBean();
                                 bean.setLanguage("");

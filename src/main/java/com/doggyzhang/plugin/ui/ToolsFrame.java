@@ -68,6 +68,9 @@ public class ToolsFrame extends JFrame {
     private JCheckBox jCheckTranslateReplaceOld;
     private JButton jButtonSelectAllLanguage;
     private JTextField jtTranslateWordPerSecond;
+    private JButton jBtnFirstEnCharUpper;
+    private JButton jBtnCharEscaping;
+    private JButton jBtnResolveAllString;
 
 
     //private ITranslate translate = new YouDaoTranslate();
@@ -84,11 +87,20 @@ public class ToolsFrame extends JFrame {
     private String exportModuleFolderPath;
     private static final int TRANSLATE_WORD_PER_SECOND = 10;
 
+    private List<File> allModuleFiles;
+
 
     public ToolsFrame(File rootDir, Project project, List<String> excelFiles,
                       List<String> moduleFiles) throws HeadlessException {
         super("");
         setContentPane(contentPane);
+        allModuleFiles = new ArrayList<>();
+        if (moduleFiles != null) {
+            for (String moduleFile : moduleFiles) {
+                allModuleFiles.add(new File(rootDir, moduleFile));
+            }
+        }
+
 
         getRootPane().setDefaultButton(buttonOK);
         this.project = project;
@@ -344,6 +356,30 @@ public class ToolsFrame extends JFrame {
 
         jtTranslateWordPerSecond.setText(String.valueOf(TRANSLATE_WORD_PER_SECOND));
 
+
+        /*
+          文本处理
+         */
+        jBtnFirstEnCharUpper.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                firstEnCharUpper();
+            }
+        });
+        jBtnCharEscaping.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                charEscaping();
+            }
+        });
+        jBtnResolveAllString.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                resolveAllChar();
+            }
+        });
+
+
         Utils.sizeWindowOnScreen(this, 550, 260);
         pack();
     }
@@ -571,7 +607,7 @@ public class ToolsFrame extends JFrame {
                         progressIndicator.setFraction(0.2);
 
                         Map<String, ArrayList<LanguageFile>> languages = XmlUtil.paresXmlMultiLanguage(moduleFile, true);
-                        System.out.println("  当前模块下的语种: " + StringUtils.join(languages.keySet(), ","));
+                        System.out.println("  当前模块(" + modelBean.getShowPath() + ")下的语种: " + StringUtils.join(languages.keySet(), ","));
 
                         //检查是否含有"en"
                         if (!languages.containsKey("en")) {
@@ -609,7 +645,7 @@ public class ToolsFrame extends JFrame {
                                 new ITranslateProgress() {
                                     @Override
                                     public void onProgressUpdate(String progress) {
-                                        progressIndicator.setText(progress);
+                                        progressIndicator.setText(currentProgressStr + progress);
                                     }
 
                                     @Override
@@ -646,10 +682,10 @@ public class ToolsFrame extends JFrame {
 
                                             String enValue = enTranslate.getValue();
                                             String targetValue = translateEntry.getValue().get(enValue);
+                                            newTranslateBean.setValue(targetValue);
                                             //检查翻译的是否准确(占位符)
                                             long enPlaceHolderCount = XMLPlaceHolderChecker.countPlaceHolder(enValue);
                                             long targetPlaceHolderCount = XMLPlaceHolderChecker.countPlaceHolder(targetValue);
-                                            newTranslateBean.setValue(targetValue);
                                             if (enPlaceHolderCount != targetPlaceHolderCount) {
                                                 existTranslateError = true;
                                                 newTranslateBean.setTranslateError(true);
@@ -786,13 +822,13 @@ public class ToolsFrame extends JFrame {
                                 //英语不纳入最后的替换操作
                                 continue;
                             }
-                            boolean resolveLanguage = false;
+                            boolean isTargetLanguage = false;
                             for (Language targetLanguage : targetLanguages) {
                                 if (targetLanguage.getLanguageCode().equals(languageCode)) {
-                                    resolveLanguage = true;
+                                    isTargetLanguage = true;
                                 }
                             }
-                            if (!resolveLanguage) {
+                            if (!isTargetLanguage) {
                                 //不是目标语言
                                 continue;
                             }
@@ -840,6 +876,204 @@ public class ToolsFrame extends JFrame {
                 Utils.makeProgress("处理中", project, true, false, true));
     }
 
+    private void firstEnCharUpper() {
+        Utils.runWithNotification(() -> {
+                    ProgressIndicator progressIndicator = ProgressManager.getInstance().getProgressIndicator();
+                    progressIndicator.setIndeterminate(false);
+
+                    //排除的语言(不参与检查首字母大写)
+                    Set<String> excludeLanguageCode = new HashSet<>();
+                    excludeLanguageCode.add(Language.EN.getLanguageCode());
+                    excludeLanguageCode.add(Language.ZH.getLanguageCode());
+                    excludeLanguageCode.add(Language.AR.getLanguageCode());
+                    excludeLanguageCode.add(Language.HI.getLanguageCode());
+
+                    if (allModuleFiles != null) {
+                        for (int i = 0; i < allModuleFiles.size(); i++) {
+                            File moduleFile = allModuleFiles.get(i);
+                            String moduleName = moduleFile.getParentFile().getName();
+                            progressIndicator.setFraction(0.2);
+                            progressIndicator.setText(
+                                    "( " + (i + 1) + "/" + allModuleFiles.size() + " ) => " + moduleName
+                            );
+
+                            Map<String, ArrayList<LanguageFile>> languages = XmlUtil.paresXmlMultiLanguage(moduleFile, true);
+                            System.out.println("  当前模块(" + moduleName + ")下的语种: " + StringUtils.join(languages.keySet(), ","));
+                            //检查是否含有"en"
+                            if (!languages.containsKey(Language.EN.getLanguageCode())) {
+                                continue;
+                            }
+                            Set<String> otherLanguages = languages.keySet().stream().filter(new Predicate<String>() {
+                                @Override
+                                public boolean test(String s) {
+                                    return !excludeLanguageCode.contains(s);
+                                }
+                            }).collect(Collectors.toSet());
+                            ArrayList<LanguageFile> enLanguageFiles = languages.get(Language.EN.getStringsCode());
+                            progressIndicator.setText(
+                                    "( " + (i + 1) + "/" + allModuleFiles.size() + " ) => " + moduleFile.getName() + ", 检索首字母没有大写的词条"
+                            );
+                            System.out.println("( " + (i + 1) + "/" + allModuleFiles.size() + " ) => " + moduleFile.getName() + ", 检索首字母没有大写的词条");
+                            for (LanguageFile enLanguageFile : enLanguageFiles) {
+                                //英语作为对照模版去纠正其他语言
+
+                                for (String otherLanguage : otherLanguages) {
+                                    ArrayList<LanguageFile> languageFiles = languages.get(otherLanguage);
+                                    if (languageFiles != null) {
+                                        for (LanguageFile languageFile : languageFiles) {
+                                            if (enLanguageFile.getFileName().equals(languageFile.getFileName())) {
+
+                                                List<MultiLanguageBean> enLanguageBeans = enLanguageFile.getLanguageBeans();
+                                                List<MultiLanguageBean> otherLanguageBeans = languageFile.getLanguageBeans();
+
+                                                for (MultiLanguageBean enLanguageBean : enLanguageBeans) {
+                                                    String enStringKey = enLanguageBean.getName();
+                                                    if (enStringKey == null || enStringKey.isEmpty()) {
+                                                        continue;
+                                                    }
+                                                    String enStringValue = enLanguageBean.getValue();
+                                                    if (enStringValue == null || enStringValue.isEmpty()) {
+                                                        continue;
+                                                    }
+                                                    char enFirstChar = enStringValue.charAt(0);
+                                                    if (!Character.isLetter(enFirstChar) || !Character.isUpperCase(enFirstChar)) {
+                                                        //首个字符是英语字母,并且大写
+                                                        continue;
+                                                    }
+                                                    //英语是不是有携带英文
+                                                    for (MultiLanguageBean otherLanguageBean : otherLanguageBeans) {
+                                                        if (enStringKey.equals(otherLanguageBean.getName())) {
+                                                            String otherStringValue = otherLanguageBean.getValue();
+                                                            if (otherStringValue != null && !otherStringValue.isEmpty()) {
+                                                                char otherFirstChar = otherStringValue.charAt(0);
+                                                                if (Character.isLetter(otherFirstChar) && !Character.isUpperCase(otherFirstChar)) {
+                                                                    //其他语言首字母没有大写
+                                                                    String newOtherStringValue = Character.toUpperCase(otherFirstChar) + otherStringValue.substring(1);
+                                                                    otherLanguageBean.setValue(newOtherStringValue);
+                                                                }
+                                                            }
+                                                            break;
+                                                        }
+                                                    }
+                                                }
+
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+
+                            }
+
+                            progressIndicator.setText(
+                                    "( " + (i + 1) + "/" + allModuleFiles.size() + " ) => " + moduleName + ", 替换词条"
+                            );
+                            //替换旧翻译
+                            for (Map.Entry<String, ArrayList<LanguageFile>> translateData : languages.entrySet()) {
+                                String languageCode = translateData.getKey();
+                                if (excludeLanguageCode.contains(languageCode)) {
+                                    continue;
+                                }
+
+                                for (LanguageFile languageFile : translateData.getValue()) {
+                                    List<ElementBean> replaceList = languageFile.getLanguageBeans().stream().map(new Function<MultiLanguageBean, ElementBean>() {
+                                        @Override
+                                        public ElementBean apply(MultiLanguageBean multiLanguageBean) {
+                                            return new ElementBean(
+                                                    multiLanguageBean.getName(),
+                                                    multiLanguageBean.getValue(),
+                                                    multiLanguageBean.isTranslateError()
+                                            );
+                                        }
+                                    }).collect(Collectors.toList());
+                                    if (!replaceList.isEmpty()) {
+                                        XmlUtil.forceReplaceToFile(replaceList, true, moduleFile, Language.getStringsCodeBy(languageCode), languageFile.getFileName());
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                },
+                project,
+                Utils.makeProgress("处理中", project, true, false, true));
+    }
+
+
+    private void charEscaping() {
+        Utils.runWithNotification(() -> {
+                    ProgressIndicator progressIndicator = ProgressManager.getInstance().getProgressIndicator();
+                    progressIndicator.setIndeterminate(false);
+
+                    if (allModuleFiles != null) {
+                        for (int i = 0; i < allModuleFiles.size(); i++) {
+                            File moduleFile = allModuleFiles.get(i);
+                            String moduleName = moduleFile.getParentFile().getName();
+                            progressIndicator.setFraction(0.2);
+                            progressIndicator.setText(
+                                    "( " + (i + 1) + "/" + allModuleFiles.size() + " ) => " + moduleName
+                            );
+
+                            Map<String, ArrayList<LanguageFile>> languages = XmlUtil.paresXmlMultiLanguage(moduleFile, true);
+                            System.out.println("  当前模块(" + moduleName + ")下的语种: " + StringUtils.join(languages.keySet(), ","));
+                            Set<String> languageCodes = languages.keySet();
+
+                            progressIndicator.setText(
+                                    "( " + (i + 1) + "/" + allModuleFiles.size() + " ) => " + moduleFile.getName() + ", 检查是否需要需要转义"
+                            );
+                            System.out.println("( " + (i + 1) + "/" + allModuleFiles.size() + " ) => " + moduleFile.getName() + ", 检索首字母没有大写的词条");
+                            for (Map.Entry<String, ArrayList<LanguageFile>> files : languages.entrySet()) {
+                                ArrayList<LanguageFile> checkFiles = files.getValue();
+                                for (LanguageFile checkFile : checkFiles) {
+                                    List<MultiLanguageBean> languageBeans = checkFile.getLanguageBeans();
+                                    for (MultiLanguageBean languageBean : languageBeans) {
+                                        String value = languageBean.getValue();
+                                        if (value != null && !value.isEmpty()) {
+                                            String newText = Utils.charEscaping(value);
+                                            if("common_search_enter_user_id".equals(languageBean.getName())){
+                                                System.out.println();
+                                            }
+                                            if (!newText.equals(value)) {
+                                                languageBean.setValue(newText);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            progressIndicator.setText(
+                                    "( " + (i + 1) + "/" + allModuleFiles.size() + " ) => " + moduleName + ", 替换词条"
+                            );
+                            //替换旧翻译
+                            for (Map.Entry<String, ArrayList<LanguageFile>> translateData : languages.entrySet()) {
+                                String languageCode = translateData.getKey();
+                                for (LanguageFile languageFile : translateData.getValue()) {
+                                    List<ElementBean> replaceList = languageFile.getLanguageBeans().stream().map(new Function<MultiLanguageBean, ElementBean>() {
+                                        @Override
+                                        public ElementBean apply(MultiLanguageBean multiLanguageBean) {
+                                            return new ElementBean(
+                                                    multiLanguageBean.getName(),
+                                                    multiLanguageBean.getValue(),
+                                                    multiLanguageBean.isTranslateError()
+                                            );
+                                        }
+                                    }).collect(Collectors.toList());
+                                    if (!replaceList.isEmpty()) {
+                                        XmlUtil.forceReplaceToFile(replaceList, true, moduleFile, Language.getStringsCodeBy(languageCode), languageFile.getFileName());
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                },
+                project,
+                Utils.makeProgress("处理中", project, true, false, true));
+    }
+
+    private void resolveAllChar() {
+        showMessageDialog("功能不做了, 一个个把上面的点一遍吧！");
+    }
 
     /**
      * 扫描解析values.xml，并上传到服务器
