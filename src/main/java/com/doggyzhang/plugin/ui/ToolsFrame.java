@@ -71,6 +71,7 @@ public class ToolsFrame extends JFrame {
     private JButton jBtnFirstEnCharUpper;
     private JButton jBtnCharEscaping;
     private JButton jBtnResolveAllString;
+    private JCheckBox jcbExportToOneFile;
 
 
     //private ITranslate translate = new YouDaoTranslate();
@@ -1113,28 +1114,69 @@ public class ToolsFrame extends JFrame {
             showMessageDialog("请选择一个保存目录");
             return;
         }
+
+        boolean exportToOneFile = jcbExportToOneFile.isSelected();
+
         ComboBoxModel<ComboBoxModelBean> models = cbExportModuleFolder.getModel();
         showMessageDialog("导出全部, 总共" + models.getSize() + "个");
         Utils.runWithNotification(() -> {
 
             List<CharCountData> chineseCountList = new ArrayList<>();
 
-            for (int i = 0; i < models.getSize(); i++) {
-                ComboBoxModelBean model = models.getElementAt(i);
-                File moduleFile;
-                if (StringUtils.isNotEmpty(model.getOriFilePath())) {
-                    moduleFile = new File(model.getOriFilePath());
-                } else {
-                    moduleFile = new File(rootDir, Configs.PROJECT_APP_FOLDER);
+            if (exportToOneFile) {
+                //导出到一个文件
+                Map<String, List<MultiLanguageBean>> outputDatas = new HashMap<>();
+
+                for (int i = 0; i < models.getSize(); i++) {
+                    ComboBoxModelBean model = models.getElementAt(i);
+                    File moduleFile;
+                    if (StringUtils.isNotEmpty(model.getOriFilePath())) {
+                        moduleFile = new File(model.getOriFilePath());
+                    } else {
+                        moduleFile = new File(rootDir, Configs.PROJECT_APP_FOLDER);
+                    }
+                    Map<String, ArrayList<LanguageFile>> languages = XmlUtil.paresXmlMultiLanguage(moduleFile, !containLib);
+                    if (languages.isEmpty()) {
+                        continue;
+                    }
+                    for (Map.Entry<String, ArrayList<LanguageFile>> entry : languages.entrySet()) {
+                        String languageCode = entry.getKey();
+                        List<MultiLanguageBean> languageBeanList = outputDatas.get(languageCode);
+                        if (languageBeanList == null) {
+                            languageBeanList = new ArrayList<>();
+                            outputDatas.put(languageCode, languageBeanList);
+                        }
+
+                        for (LanguageFile languageFile : entry.getValue()) {
+                            languageBeanList.addAll(languageFile.getLanguageBeans());
+                        }
+                    }
+                    CharCountData chineseCharCount = collectChineseInfo(moduleFile.getName(), languages);
+                    if (chineseCharCount.count > 0) {
+                        chineseCountList.add(chineseCharCount);
+                    }
                 }
-                Map<String, ArrayList<LanguageFile>> languages = XmlUtil.paresXmlMultiLanguage(moduleFile, !containLib);
-                if (languages.isEmpty()) {
-                    continue;
-                }
-                ExcelUtil.generateExcelFile(dir, "[" + moduleFile.getName() + "]" + " ", languages);
-                CharCountData chineseCharCount = collectChineseInfo(moduleFile.getName(), languages);
-                if (chineseCharCount.count > 0) {
-                    chineseCountList.add(chineseCharCount);
+
+                ExcelUtil.writeToExcel(new File(dir, "output.xls"), outputDatas);
+
+            } else {
+                for (int i = 0; i < models.getSize(); i++) {
+                    ComboBoxModelBean model = models.getElementAt(i);
+                    File moduleFile;
+                    if (StringUtils.isNotEmpty(model.getOriFilePath())) {
+                        moduleFile = new File(model.getOriFilePath());
+                    } else {
+                        moduleFile = new File(rootDir, Configs.PROJECT_APP_FOLDER);
+                    }
+                    Map<String, ArrayList<LanguageFile>> languages = XmlUtil.paresXmlMultiLanguage(moduleFile, !containLib);
+                    if (languages.isEmpty()) {
+                        continue;
+                    }
+                    ExcelUtil.generateExcelFile(dir, "[" + moduleFile.getName() + "]" + " ", languages);
+                    CharCountData chineseCharCount = collectChineseInfo(moduleFile.getName(), languages);
+                    if (chineseCharCount.count > 0) {
+                        chineseCountList.add(chineseCharCount);
+                    }
                 }
             }
 

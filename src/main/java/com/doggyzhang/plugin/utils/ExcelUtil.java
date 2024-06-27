@@ -174,7 +174,7 @@ public class ExcelUtil {
     }
 
 
-    private static void writeToExcel(File outputFile, Map<String, List<MultiLanguageBean>> datas) {
+    public static void writeToExcel(File outputFile, Map<String, List<MultiLanguageBean>> datas) {
         if (!outputFile.exists()) {
             try {
                 File parentFile = outputFile.getParentFile();
