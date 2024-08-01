@@ -2,16 +2,16 @@ buildscript {
     repositories {
         mavenCentral()
         maven {
-            url "https://oss.sonatype.org/content/repositories/snapshots/"
+            url "https://repo.spring.io/release"
         }
         maven {
-            url 'https://dl.bintray.com/jetbrains/intellij-plugin-service'
+            url "https://repository.jboss.org/maven2"
         }
     }
 }
 
 plugins {
-    id 'org.jetbrains.intellij' version "0.4.21"
+    id 'org.jetbrains.intellij' version "0.7.3"
 }
 
 apply plugin: 'org.jetbrains.intellij'
@@ -34,13 +34,11 @@ targetCompatibility = 1.11
 repositories {
     mavenCentral()
     maven {
-        url "https://oss.sonatype.org/content/repositories/snapshots/"
+        url "https://repo.spring.io/release"
     }
     maven {
-        url 'https://dl.bintray.com/jetbrains/intellij-plugin-service'
+        url "https://repository.jboss.org/maven2"
     }
-    maven { url "https://www.jetbrains.com/intellij-repository/releases" }
-    maven { url "https://www.jetbrains.com/intellij-repository/snapshots" }
 }
 
 dependencies {
